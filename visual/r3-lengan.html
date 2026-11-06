@@ -1,0 +1,733 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Model 3D dan simulasi lengan robot 6 sendi R3: IK, ambil-taruh, torsi tiap sendi terhadap rating, komponen usulan, dan harga.">
+<title>R3 Lengan Robot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* design · layar aplikasi (visualisasi teknik) · dial E1/R1/M1 · tanda tangan: model 3D + tabel torsi sendi vs rating ·
+   font Plex Sans Condensed (judul), Plex Sans (isi), Plex Mono (angka) karena dunia lembar data & gambar teknik */
+/* Layout: kanvas 3D mengisi kiri, panel kerja 380px di kanan; di HP kanvas di atas, panel di bawah. */
+:root {
+  --bg: #eef1f2; --panel: #ffffff; --fg: #16202a; --muted: #55626e; --line: #d3d9de;
+  --accent: #b54708; --accent-fg: #ffffff; --accent-soft: #fbeee4;
+  --ok: #1e7a46; --caution: #8a5a00; --warn: #b42318; --scene: #dde3e7; --floor: #c9d1d6;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+    --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+    --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+  --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+  --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow-x: clip; }
+body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 18px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 6px; }
+.total b { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+.seg button { min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 14px var(--f-body); cursor: pointer; }
+.seg button[aria-selected="true"] { background: var(--fg); color: var(--panel); }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+  color: var(--fg); font: 500 13px var(--f-body); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.views .btn { min-height: 36px; background: var(--panel); }
+label.row { display: flex; align-items: center; gap: 10px; }
+input[type=range] { flex: 1; accent-color: var(--accent); min-height: 32px; }
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; text-align: left;
+  min-height: 44px; padding: 8px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--fg); font: inherit; cursor: pointer; }
+.item:hover { background: var(--bg); }
+.item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .n { font-weight: 500; min-width: 0; }
+.item .p { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .q { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.item .off { color: var(--muted); }
+.detail { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.detail ul { margin: 0; padding-left: 18px; }
+.detail li + li { margin-top: 3px; }
+.detail a { color: var(--accent); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cell { background: var(--panel); padding: 8px 10px; min-width: 0; }
+.cell span { display: block; color: var(--muted); font-size: 12px; }
+.cell b { font-family: var(--f-mono); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.cell.wide { grid-column: 1 / -1; }
+.state-ok { color: var(--ok); } .state-hit { color: var(--warn); }
+.pad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); gap: 6px; justify-content: center; }
+.pad button { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); font: 600 13px var(--f-body);
+  cursor: pointer; touch-action: none; user-select: none; }
+.pad button.on { background: var(--fg); color: var(--panel); }
+.pad .f { grid-column: 2; grid-row: 1; } .pad .l { grid-column: 1; grid-row: 2; } .pad .b { grid-column: 2; grid-row: 2; } .pad .r { grid-column: 3; grid-row: 2; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+kbd { font-family: var(--f-mono); font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.err { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--fg); }
+.sub a { color: var(--accent); font-weight: 600; }
+.state-warn { color: var(--caution); }
+.joints { width: 100%; border-collapse: collapse; font-size: 12px; }
+.joints th, .joints td { border-bottom: 1px solid var(--line); padding: 5px 4px; text-align: left; vertical-align: top; }
+.joints td { font-family: var(--f-mono); font-variant-numeric: tabular-nums; }
+.joints small { color: var(--muted); }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .stage { height: 58vh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+.bar { height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 3px; }
+.bar i { display: block; height: 100%; background: var(--ok); }
+.bar i.state-warn { background: var(--caution); } .bar i.state-hit { background: var(--warn); }
+.sliders { display: flex; flex-direction: column; gap: 2px; }
+.sliders label { display: grid; grid-template-columns: 64px minmax(0, 1fr) 58px; align-items: center; gap: 8px; font-size: 13px; }
+.sliders output { font-family: var(--f-mono); font-size: 12px; text-align: right; font-variant-numeric: tabular-nums; }
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="views" role="group" aria-label="Sudut pandang">
+      <button class="btn" data-view="iso">Isometrik</button>
+      <button class="btn" data-view="top">Atas</button>
+      <button class="btn" data-view="side">Samping</button>
+      <button class="btn" data-view="front">Depan</button>
+    </div>
+    <p class="hint" id="hint">Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.</p>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <h1>R3 Lengan Robot</h1>
+      <nav class="sub"><a href="../index.html">← Semua alat</a></nav>
+      <p class="sub">Lengan 6 sendi, jangkauan 1000 mm, beban 0,5 kg. Usulan spesifikasi untuk permintaan dosen, harga Tokopedia per 7 Nov 2026.</p>
+    </header>
+    <div class="total"><span>Perkiraan RAB, belum ongkir</span><b id="total">Rp0</b></div>
+
+    <div class="seg" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-k" aria-selected="true" aria-controls="pane-k">Komponen</button>
+      <button role="tab" id="tab-s" aria-selected="false" aria-controls="pane-s">Simulasi</button>
+    </div>
+
+    <section id="pane-k" role="tabpanel" aria-labelledby="tab-k" style="display:flex;flex-direction:column;gap:14px">
+      <label class="row" for="explode">Urai <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
+      <div class="detail" id="detail" aria-live="polite"></div>
+      <div class="list" id="list"></div>
+      <p class="note">IK dan olah kamera stereo berjalan di PC/laptop lab (tidak masuk RAB). Pemotongan & pengeboran pelat 6 mm di bengkel kampus.
+        Massa bertanda estimasi diambil dari kelas komponennya, bukan lembar data resmi.</p>
+    </section>
+
+    <section id="pane-s" role="tabpanel" aria-labelledby="tab-s" hidden style="flex-direction:column;gap:14px">
+      <div class="tools">
+        <button class="btn" id="demo" aria-pressed="false">Demo ambil-taruh</button>
+        <button class="btn" id="stretch">Rentang penuh</button>
+        <button class="btn" id="home">Posisi awal</button>
+      </div>
+      <div class="tools">
+        <button class="btn" id="pay" aria-pressed="true">Beban 0,5 kg</button>
+        <button class="btn" id="grip" aria-pressed="false">Tutup gripper</button>
+      </div>
+      <p class="note" style="margin:0">Klik meja untuk memindah ujung gripper ke titik itu (IK posisi, gripper menghadap bawah).</p>
+      <label class="row" for="tz">Tinggi target <input type="range" id="tz" min="20" max="600" step="10" value="150"><output id="tzo" style="font-family:var(--f-mono);font-size:12px;min-width:58px;text-align:right">150 mm</output></label>
+      <div class="sliders" id="sliders" role="group" aria-label="Sudut sendi"></div>
+      <div class="grid2">
+        <div class="cell wide"><span>Ujung gripper x, y, z dari pusat base</span><b id="t-p">-</b></div>
+        <div class="cell"><span>Jangkauan saat ini</span><b id="t-r">-</b></div>
+        <div class="cell"><span>Status</span><b id="t-st">-</b></div>
+        <div class="cell"><span>Sensor jarak ToF gripper</span><b id="t-tof">-</b></div>
+        <div class="cell"><span>Beban di gripper</span><b id="t-pay">-</b></div>
+        <div class="cell"><span>Galat ujung dari backlash</span><b id="t-bl">-</b></div>
+        <div class="cell"><span>Ketelitian kedalaman stereo</span><b id="t-cam">-</b></div>
+        <div class="cell wide"><span>Sendi paling berat (puncak sejak awal)</span><b id="t-max">-</b></div>
+      </div>
+      <table class="joints" aria-label="Sudut dan torsi tiap sendi">
+        <thead><tr><th scope="col">Sendi</th><th scope="col">Sudut</th><th scope="col">Torsi perlu / rated</th></tr></thead>
+        <tbody id="jt"></tbody>
+      </table>
+      <p class="note">Torsi = berat tiap bagian × lengan momen + inersia × percepatan sendi. Kapasitas = torsi rated motor (bukan puncak) × rasio × efisiensi,
+        dibatasi torsi rated gearbox. Hijau ≤ 80%, kuning 80–100%, merah lebih. Galat backlash = jumlah terburuk backlash tiap gearbox × jaraknya ke ujung.
+        Angka untuk gambaran, bukan hasil uji.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const T = "https://www.tokopedia.com/";
+const PARTS = [
+  { id: "servo750", nama: "Servo AC 750 W 17-bit + rem + driver (J2 bahu)", qty: 1, harga: 3900000, toko: "Lajarus Teknik", url: T + "lajarusteknik/ac-servo-motor-750w-17-bit-set-driver-brake-1pcs-96953",
+    spek: ["Torsi rated 2,39 N·m (puncak 7,71), 3000 rpm, rangka 80 mm, as 19 mm", "Enkoder 17-bit, 10.000 pulsa/putaran; driver 220 VAC satu fasa, mode posisi, kecepatan, torsi", "Rem 24 V: menahan lengan saat daya putus atau E-stop", "±3,0 kg dengan rem (estimasi), duduk di turntable, tidak ikut terangkat"] },
+  { id: "gb90", nama: "Gearbox planetary PLF90 2 tahap 1:50 (J2)", qty: 1, harga: 3200715, toko: "SG QUALITY", url: T + "sgquality/plf90-planetary-gearbox-reducer-2-stage-ratio-15-1-20-1-50-1-for-80mm-750w-ac-servo-motor-input-shaft-19mm-1734332208373466455",
+    spek: ["Untuk servo 80 mm 750 W, as masuk 19 mm; pilih rasio 50:1", "Torsi keluaran tertulis 56 N·m: dipakai sebagai batas. Kebutuhan terburuk 52 N·m (93%)", "Pre-order 15–20 hari. Tanyakan backlash & torsi rated untuk 1:50 sebelum bayar", "Resolusi di sendi: 2¹⁷ × 50 → 0,2 detik busur"] },
+  { id: "servo400b", nama: "Servo AC 400 W 17-bit + rem + driver (J3 siku)", qty: 1, harga: 2850000, toko: "Lajarus Teknik", url: T + "lajarusteknik/ac-servo-motor-400w-17-bit-set-driver-brake",
+    spek: ["Torsi rated 1,27 N·m (puncak 3,81), 3000 rpm, rangka 60 mm, as 14 mm", "Enkoder 17-bit; mode posisi, kecepatan, torsi", "Rem 24 V menahan lengan bawah saat daya putus", "±1,75 kg (estimasi), dipasang di ujung lengan atas"] },
+  { id: "gb60b", nama: "Gearbox planetary 60 mm 1:20, 5 arcmin (J3)", qty: 1, harga: 2000000, toko: "Rahmi Store Lima", url: T + "rahmistore4/planetary-gearbox-20-1-50-1-14mm-nema24-servo-200w-400w-60mm-high-precision-5-arcmin-1730839713385383498",
+    spek: ["Untuk servo 60 mm, as masuk 14 mm, keluar 16 mm; pilih varian 20:1", "Backlash 5 arcmin = 0,08° (syarat dosen < 1°)", "Kapasitas sendi 1,27 × 20 × 0,92 = 23,4 N·m, kebutuhan terburuk 14,3 N·m (61%)"] },
+  { id: "servo400", nama: "Servo AC 400 W 17-bit + driver (J1 base)", qty: 1, harga: 2250000, toko: "Lajarus Teknik", url: T + "lajarusteknik/ac-servo-motor-400w-17-bit-set-driver-m0-1330-cb-60760",
+    spek: ["Sama dengan J3 tanpa rem: sumbu tegak, tidak menahan gravitasi", "Torsi rated 1,27 N·m, enkoder 17-bit, kabel 3 m", "Di dalam kolom base, menghadap atas"] },
+  { id: "gb60", nama: "Gearbox planetary PLF60-L1 1:10 (J1)", qty: 1, harga: 536800, toko: "x-machinery", url: T + "x-machinery/planetary-gearbox-reducer-untuk-servo-400w-code-plf60-l1-input-14mm-output-14mm-dengan-shaf-atau-spi-16mm-1735524412215887044-1735524593866867908",
+    spek: ["Untuk servo 400 W, as 14 mm; pilih varian 1:10 dengan as 16 mm", "Kapasitas 1,27 × 10 × 0,95 = 12,1 N·m; J1 hanya melawan inersia, perlu 6,7 N·m (55%)", "Backlash tidak tertulis: kelas PLF satu tahap umumnya ≤ 15 arcmin (0,25°), konfirmasi ke toko"] },
+  { id: "stepper", nama: "Motor stepper NEMA17 17HS8401 48 mm (J4–J6)", qty: 3, harga: 158400, toko: "Rajawali3D", url: T + "rajawali3d/nema-17-stepper-motor-17hs8401-1-8-a-52n-cm-48mm-1-8deg-with-plug-kbl",
+    spek: ["Torsi tahan 0,52 N·m, 1,8 A; dihitung 0,40 N·m saat bergerak", "J4 putar lengan bawah, J5 angguk pergelangan, J6 putar gripper", "±0,36 kg per motor"] },
+  { id: "gb42", nama: "Gearbox planetary NEMA17 Cloudray FLE42 1:10", qty: 3, harga: 879300, toko: "Tokokakrah", url: T + "tokokakrah/cloudray-nema17-planetary-gearbox-motor-speed-reducer-with-ratio-5-1-10-1-20-1-5mm-input-for-nema17-stepper-motor-1732009863197656148",
+    spek: ["Pilih rasio 10:1, torsi keluaran tertulis 5 N·m", "Kapasitas 0,40 × 10 × 0,9 = 3,6 N·m; J5 perlu 1,9 N·m (52%)", "Backlash tidak tertulis: minta data ke toko, syarat ≤ 30 arcmin. Gearbox murah ber-backlash ≤ 1° tidak dipakai karena pas di batas"] },
+  { id: "mks", nama: "Driver closed-loop MKS SERVO42D RS485", qty: 3, harga: 466000, toko: "Syalis Electrical Store", url: T + "syalis-electrical/mks-servo42d-42-closed-loop-stepper-motor-driver-rs485can-modbus-foc-syalis-1737618104600593788-1737618104577525116",
+    spek: ["Dipasang di punggung motor: enkoder magnetik 14-bit + kendali FOC", "Pilih paket papan RS485: satu bus Modbus-RTU untuk tiga sendi", "Mode posisi & kecepatan; arus 0–3 A di 24 V", "Resolusi di sendi: 2¹⁴ × 10 → 0,13 arcmin"] },
+  { id: "mcu", nama: "STM32 Black Pill WeAct F411CEU6", qty: 1, harga: 147000, toko: "HwThinker", url: T + "hwthinker/weact-stm32f411ceu6-stm32-stm32f4-arm-cortex-m4-blackpill-flety-v3-1-f411-058a9",
+    spek: ["Cortex-M4 100 MHz + FPU (Arduino Mega 8-bit tanpa FPU ditolak); sama dengan R1", "TIM2/3/4: pulsa langkah tiga servo AC; USART2 + MAX485: bus MKS; I²C: sensor ToF; TIM9: PWM gripper", "USB-C ke PC: terima sudut sendi dari IK, kirim telemetri"] },
+  { id: "stlink", nama: "Programmer ST-Link V2 mini", qty: 1, harga: 39000, toko: "ichibot", url: T + "ichibot/st-link-v2-stlink-mini-stm8-stm32-stlink-downloader-programming", off: true,
+    spek: ["SWD: SWDIO, SWCLK, GND, 3V3", "Alat bengkel; bisa memakai milik R1"] },
+  { id: "pcb", nama: "PCB lubang 7 × 9 cm dua sisi", qty: 1, harga: 15500, toko: "Supreme ID", url: T + "supreme/high-quality-double-dual-sided-holed-fiber-pcb-board-7-x-9-cm",
+    spek: ["Papan pembawa Black Pill, 6N137, MAX485, konektor sinyal driver", "Hijau di panel"] },
+  { id: "opto", nama: "Optocoupler 6N137 DIP", qty: 8, harga: 10000, toko: "Putra Niaga Elektronik", url: T + "putraniagabdg/6n137-optocoupler-dip-6pin-high-quality", nomesh: true,
+    spek: ["Isolasi 10 Mbit/s antara Black Pill 3,3 V dan masukan pulsa driver servo AC", "3 × PUL, 3 × DIR, 1 × SON, 1 cadangan"] },
+  { id: "rs485", nama: "Modul MAX485 TTL ke RS485", qty: 1, harga: 7000, toko: "CNC Store Bandung", url: T + "cncstorebandung/max485-module-rs485-module-ttl-to-rs-485-module-mcu-development", nomesh: true,
+    spek: ["Bus Modbus-RTU ke tiga MKS SERVO42D", "Pin Black Pill toleran 5 V"] },
+  { id: "relay", nama: "Modul relay 2 kanal 24 V", qty: 1, harga: 21000, toko: "Akhishop Electronics", url: T + "akhishop/2-channel-relay-module-24v-supports-high-and-low-trigger",
+    spek: ["Membuka rem J2 & J3 dari sinyal BRK driver", "Gagal-aman: daya hilang → relay lepas → rem mengunci"] },
+  { id: "gripper", nama: "Gripper capit aluminium untuk servo", qty: 1, harga: 49500, toko: "art techno new", url: T + "arttechno/gripper-aluminium-robot-arm-clamp-claw-mount-for-servo-penjepit-silver-81411",
+    spek: ["Bukaan maks 55 mm, 65 g", "Benda uji: kubus baja 40 mm ≈ 0,5 kg", "Gaya jepit perlu 12 N (gesek 0,4, faktor aman 2)"] },
+  { id: "servog", nama: "Servo digital DS3225 25 kg·cm (gripper)", qty: 1, harga: 245000, toko: "Aerosky Hobby", url: T + "aeroskyhobby/dsservo-ds3225-25kg-metal-gear-high-torque-waterproof-digital-servo",
+    spek: ["2,45 N·m di 6,8 V: ±40 N di ujung jari 5 cm, jauh di atas 12 N", "Roda gigi logam, PWM dari Black Pill"] },
+  { id: "buck", nama: "Buck DC-DC 200 W 12 A", qty: 1, harga: 49900, toko: "Supreme ID", url: T + "supreme/200w-high-power-dc-dc-step-down-buck-converter-for-dc-power-supply-unit-12a-1731300330852222579",
+    spek: ["24 V → 6,5 V untuk servo gripper", "Arus macet DS3225 ±3 A"] },
+  { id: "tof", nama: "Sensor jarak ToF VL53L0X", qty: 1, harga: 25000, toko: "ichibot", url: T + "ichibot/vl53l0x-v2-laser-ranging-sensor-module-gy-530-jarak-laser-940nm",
+    spek: ["Sensor proksimitas di telapak gripper, menghadap arah jepit", "Jarak 3–200 cm, I²C: memastikan benda ada di antara jari sebelum menutup"] },
+  { id: "prox", nama: "Sensor proksimitas induktif LJ12A3-4-Z/BX", qty: 6, harga: 24500, toko: "art techno new", url: T + "arttechno/sensor-lj12a34z-bx-proximity-switch-photoelectric-switch",
+    spek: ["Titik nol (homing) tiap sendi: enkoder 17-bit di motor, tetapi gearbox membuat sudut sendi harus dicari ulang tiap dinyalakan", "NPN NO, 6–36 V (dicatu 24 V), deteksi logam 4 mm", "J1–J3 ke Black Pill, J4–J6 ke masukan MKS"] },
+  { id: "kamera", nama: "Kamera stereo USB dua lensa 2560 × 720", qty: 1, harga: 1194000, toko: "tokoqede", url: T + "tokoqede/3d-stereo-vr-usb-camera-module-720p-with-dual-lens-2560x720-30fps-synchronized-same-frame-baseline-adjustable-for-windows-linux",
+    spek: ["Sama dengan R2. Dua lensa tersinkron dalam satu frame, 30 fps", "Dipasang tetap di atas meja (eye-to-hand), melihat seluruh area kerja", "Ketelitian kedalaman ±4 mm di 0,8 m, ±9 mm di 1,2 m (baseline 60 mm, subpiksel 0,25)"] },
+  { id: "tripod", nama: "Tripod 170 cm", qty: 1, harga: 175000, toko: "MIXIO", url: T + "mixioofficial/mixio-3522-170cm-premium-tripod-bluetooth-remote-bag-profesional-1729574104929240170",
+    spek: ["Dudukan kamera stereo, baut 1/4 inci", "Diletakkan di luar lingkar jangkauan 1 m"] },
+  { id: "psu", nama: "Power supply Mean Well LRS-200-24", qty: 1, harga: 405000, toko: "Magna Automation", url: T + "magnaautomation/mean-well-lrs-200-24-power-supply-meanwell-200w-24v-8-3a-lrs-nes",
+    spek: ["24 V 8,8 A dari 220 VAC", "Beban: MKS 3 × ±1,5 A, rem 2 × 0,3 A, gripper ±1 A, sensor & logika: total ±6,5 A"] },
+  { id: "mcb", nama: "MCB Schneider iC60N 2P 10 A", qty: 1, harga: 125000, toko: "Badja Electric", url: T + "badjaelectric/mcb-ic60n-2p-10a-6ka-schneider-2phase-2pole",
+    spek: ["Saklar & pengaman utama 220 VAC, memutus fasa dan netral", "Arus masuk tiga driver + PSU saat bekerja ±3 A, lonjakan awal ditahan kurva C"] },
+  { id: "kontaktor", nama: "Kontaktor Schneider LC1D09M7 koil 220 V", qty: 1, harga: 165000, toko: "Elektrindo Jaya Panel", url: T + "elektrindo-jaya-panel/kontaktor-schneider-lc1d09m7-25a-24v-42v-48v-110v-220v-380v-4kw-lc1d09-1732658367553307804",
+    spek: ["Memutus 220 VAC ke tiga driver servo AC", "Rangkaian tahan-diri: START menyalakan, E-stop memutus koil", "PSU 24 V & Black Pill tetap hidup supaya status terbaca"] },
+  { id: "estop", nama: "Tombol E-stop 22 mm LA38", qty: 2, harga: 14500, toko: "CNC Store Bandung", url: T + "cncstorebandung/push-button-emergency-stop-self-locking-22mm-10a-upto-660vac-la38-11zs",
+    spek: ["Satu di pintu panel, satu di base lengan; disambung seri", "Mengunci; kontak NC memutus koil kontaktor, kontak NO dibaca Black Pill"] },
+  { id: "start", nama: "Tombol tekan LA38-11BN hijau", qty: 1, harga: 23883, toko: "Trunyear Electric", url: T + "trunyear-electric/la38-11bn-tombol-push-button-22mm-momentary-1no-1nc-kontak-perak-merah-hijau-kuning-1733453574758565230",
+    spek: ["START: menyalakan kontaktor", "Pilih warna hijau"] },
+  { id: "panel", nama: "Box panel indoor 40 × 30 × 18 cm", qty: 1, harga: 134640, toko: "Delight Elektronik", url: T + "delightelektronik/box-panel-indoor-40x30-40x50-40x60-50x70-60x80-1mm-plate-40x30",
+    spek: ["Isi: 3 driver servo, PSU, MCB, kontaktor, relay, buck, papan Black Pill", "Pelat 1 mm, dibumikan lewat kabel arde", "Di model pintu dilepas supaya isinya terlihat"] },
+  { id: "din", nama: "Rel DIN aluminium 1 m", qty: 1, harga: 21300, toko: "megalistrik.id", url: T + "megalistrikid/rel-mcb-1-meter-din-rail-aluminium-1m-rel-omega-1-fungsi",
+    spek: ["Dudukan MCB, kontaktor, terminal di panel"] },
+  { id: "terminal", nama: "Terminal blok UK2.5B", qty: 20, harga: 3119, toko: "INDOLISTRIK OFFICIAL TNG", url: T + "indolistrik-tng/terminal-block-uk2-5b-tab-rel-din-konektor-kabel-panel-listrik-abu-abu-1734918094742587244",
+    spek: ["Distribusi 220 VAC, 24 V, dan sinyal sensor ke lengan"] },
+  { id: "kabelpower", nama: "Kabel power 3 × 1,5 mm² 3 m steker schuko", qty: 1, harga: 65000, toko: "Joerema", url: T + "joerema/kabel-power-3x1-5-3x2-5mm-panjang-3m-dengan-steker-schuko-1731812679709000830", nomesh: true,
+    spek: ["Pilih varian 1,5 mm²; berarde untuk rangka & driver"] },
+  { id: "kabelac", nama: "Kabel serabut 3 × 1,5 mm², per meter", qty: 3, harga: 9000, toko: "H&H ELEKTRIK ID", url: T + "hhelektrik-1/kabel-listrik-kabel-serabut-3x1-5mm-model-oval-biru-per-meter", nomesh: true,
+    spek: ["Pengawatan 220 VAC di dalam panel"] },
+  { id: "kabel6", nama: "Kabel kontrol 6 × 22 AWG berpelindung, per meter", qty: 6, harga: 19000, toko: "Automa-88", url: T + "automa88/eceran-per-1-meter-ul-2464-kabel-control-instrument-isi-6-core-6c-x-22awg-22-awg-screen-shielded-1730790333093741776", nomesh: true,
+    spek: ["Dua jalur 3 m dari panel ke pergelangan", "Jalur A: 24 V, GND, RS485 A/B ke MKS. Jalur B: 6,5 V, GND, PWM gripper, I²C ToF"] },
+  { id: "usbc", nama: "Kabel data USB-C UGREEN 2 m", qty: 1, harga: 42500, toko: "Ugreen Serpong", url: T + "ugreenserpong/ugreen-kabel-data-usb-type-c-nylon-braided-fast-charging-3a-1m-2m-3m-1732888295468991903", nomesh: true,
+    spek: ["Black Pill ke PC lab; pilih 2 m"] },
+  { id: "hollow", nama: "Hollow aluminium 6061 50 × 50 × 1,5 mm, per cm", qty: 200, harga: 1684, toko: "Findustri", url: T + "findustri/hollow-alumunium-50-mm-x-50-mm-tebal-1-5-mm-hollo-aluminium-dural-6061-pipa-holo-kotak",
+    spek: ["Lengan atas 45 cm, lengan bawah 38 cm, 4 tiang base 28 cm", "0,79 kg/m. Lendutan sudut di beban penuh: lengan atas 0,05°, lengan bawah 0,02°"] },
+  { id: "plat", nama: "Pelat aluminium 6061 6 mm, per 10 × 10 cm", qty: 35, harga: 34788, toko: "Ultra Metal", url: T + "ultra-metal/plat-aluminium-6061-tebal-6mm-costum-ukuran-1734315654989120848",
+    spek: ["±3400 cm²: alas & tutup base 1700, turntable 400, tiang bahu 600, braket siku & pergelangan ±700", "Dipotong & dibor di bengkel kampus (gergaji, frais/CNC)"] },
+  { id: "ucf", nama: "Bearing flens UCF204 as 20 mm", qty: 2, harga: 41833, toko: "DBS BEARING", url: T + "dbsbearing/bearing-unit-ucf-204-nkn-diameter-as-20-mm-uc204-f204-original",
+    spek: ["Dua bearing berjarak 100 mm di poros J1: menahan momen tekuk lengan ±50 N·m (±500 N per bearing)", "Gearbox J1 hanya menerima puntir"] },
+  { id: "ucp", nama: "Pillow block UCP204 as 20 mm", qty: 1, harga: 40000, toko: "TNG.Industrial", url: T + "tngindustrial/ucp-204-pillow-block-bearing-ucp204-diameter-20mm-1729813119040718070",
+    spek: ["Tumpuan sisi kedua poros bahu J2"] },
+  { id: "as20", nama: "As stainless SUS304 Ø20 mm, per 10 cm", qty: 3, harga: 30000, toko: "Toko Besi UBS", url: T + "tokobesiubs/as-besi-bulat-sus-304-diameter-20-mm-as-besi-stainless-per-10cm",
+    spek: ["Poros J1 (20 cm, ujung dibubut ke 14 mm untuk kopling) dan poros bantu J2 (10 cm)"] },
+  { id: "kopling", nama: "Kopling jaw D30L40 14 mm", qty: 1, harga: 90000, toko: "Explode Store Automation", url: T + "explode/flexible-coupling-d30l40-spider-jaw-8mm-10mm-12mm-12-7mm-14mm",
+    spek: ["Gearbox J1 ke poros base; meredam ketidaksebarisan"] },
+  { id: "keyless", nama: "Keyless bushing Misumi (pengunci poros)", qty: 2, harga: 250000, toko: "Misumi Indonesia", url: T + "misumiofficialstore/keyless-bushings-mechanical-lock-straight-e-mla22-303d2", nomesh: true,
+    spek: ["Mengunci hub lengan ke as keluaran gearbox J2 dan J3 tanpa celah pasak", "Pilih diameter sesuai as gearbox (J3 16 mm; J2 dicek saat barang datang)"] },
+  { id: "baut6", nama: "Baut L baja M6 grade 8.8", qty: 80, harga: 384, toko: "BAUT ABADI INDONESIA", url: T + "bautabadiindonesia/baut-l-baja-m6-grade-8-8-soket-segi-enam-panjang-10-sd-100mm-full-drat-hex-socket-head-cap-screw-1731632231759316010", nomesh: true,
+    spek: ["Rangka, braket, flens gearbox; panjang 16–40 mm"] },
+  { id: "baut3", nama: "Set baut & mur M2/M3 hex socket", qty: 1, harga: 67200, toko: "Mutiara", url: T + "mutiaratokped/baut-l-dan-mur-kepala-soket-hex-sekrup-baja-karbon-baut-set-screw-bolt-nuts-hexagon-stainless-steel-m2-m3-sek-rup-1732396684609946709", nomesh: true,
+    spek: ["Motor NEMA17, MKS, papan elektronik, sensor"] },
+];
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const num = (n, d) => n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+document.getElementById("total").textContent = rp(PARTS.reduce((s, p) => s + p.qty * p.harga, 0));
+
+const stage = document.getElementById("stage");
+const threeOK = !!(window.THREE && THREE.OrbitControls);
+if (!threeOK) {
+  stage.insertAdjacentHTML("beforeend", '<div class="err"><p>Model 3D gagal dimuat karena pustaka three.js tidak terunduh. Periksa koneksi lalu muat ulang halaman. Daftar komponen di panel tetap bisa dibaca.</p></div>');
+}
+
+// ---------- daftar komponen ----------
+const listEl = document.getElementById("list"), detailEl = document.getElementById("detail");
+let selected = null;
+PARTS.forEach(p => {
+  const b = document.createElement("button");
+  b.className = "item"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="n">${p.nama}</span><span class="p">${rp(p.qty * p.harga)}</span>
+    <span class="q">${p.qty} × ${rp(p.harga)} · ${p.toko}${p.off ? ' · <span class="off">alat bengkel</span>' : p.nomesh ? ' · <span class="off">tidak dimodelkan</span>' : ""}</span>`;
+  b.addEventListener("click", () => select(selected === p.id ? null : p.id));
+  listEl.appendChild(b);
+});
+function renderDetail() {
+  const p = PARTS.find(x => x.id === selected);
+  if (!p) {
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian lengan di model. Geser "Urai" untuk memisahkan motor dari gearbox dan braketnya.</p>`;
+    return;
+  }
+  detailEl.innerHTML = `<h2>${p.nama}</h2>
+    <ul>${p.spek.map(s => `<li>${s}</li>`).join("")}</ul>
+    <p class="note" style="margin:0">${p.qty} × ${rp(p.harga)} · ${p.toko}</p>
+    <a href="${p.url}" target="_blank" rel="noopener">Buka di Tokopedia</a>`;
+}
+renderDetail();
+
+const tabs = { k: document.getElementById("tab-k"), s: document.getElementById("tab-s") };
+const panes = { k: document.getElementById("pane-k"), s: document.getElementById("pane-s") };
+let mode = "k";
+function select(id) {
+  selected = id;
+  listEl.querySelectorAll(".item").forEach(b => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  renderDetail(); if (threeOK) paint();
+}
+if (!threeOK) { tabs.s.disabled = true; return; }
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 30);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 0.5; controls.maxDistance = 7;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a949c, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(1.5, 3.2, 1.6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -2, right: 2, top: 2, bottom: -2, near: 0.5, far: 8 });
+scene.add(sun);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(3.4, 3.0), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+const ringMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.55 });
+const ring = new THREE.Mesh(new THREE.RingGeometry(0.993, 1.0, 128), ringMat);
+ring.rotation.x = -Math.PI / 2; ring.position.y = 0.001; scene.add(ring);
+function applyTheme() { scene.background = new THREE.Color(css("--scene")); floorMat.color.set(css("--floor")); ringMat.color.set(css("--accent")); }
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---------- model (meter; y atas; lengan menghadap +x saat J1 = 0) ----------
+const meshes = [];
+const M = (color, metal = 0.1, rough = 0.6) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough });
+function add(part, geo, mat, pos, ex = [0, 0, 0], parent = scene, rot = [0, 0, 0]) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos); m.rotation.set(...rot);
+  m.castShadow = m.receiveShadow = true;
+  m.userData = { part, base: new THREE.Vector3(...pos), ex: new THREE.Vector3(...ex) };
+  parent.add(m); meshes.push(m); return m;
+}
+const grp = (parent, pos) => { const g = new THREE.Group(); g.position.set(...pos); parent.add(g); return g; };
+const BOX = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+const CYX = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateZ(Math.PI / 2);
+const CYY = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s);
+const CYZ = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateX(Math.PI / 2);
+const ALU = M(0xb9c0c6, 0.6, 0.38), DARK = M(0x2b2f34, 0.3, 0.5), STEEL = M(0x8d949a, 0.8, 0.3), BLK = M(0x17191c, 0.2, 0.55);
+const RAD = Math.PI / 180;
+const H = 0.49, L2 = 0.45, L3 = 0.38, LT = 0.17, ZA = -0.06; // tinggi sumbu bahu, lengan atas, lengan bawah, J5→ujung, offset lengan atas
+
+// servo AC: badan persegi sepanjang sumbu lokal (dir), flens di sisi poros
+function acServo(part, parent, pos, axis, s, len, ex) {
+  const [w, sgn] = [s, Math.sign(len)], L = Math.abs(len), geo = axis === "z" ? BOX(w, w, L) : axis === "x" ? BOX(L, w, w) : BOX(w, L, w);
+  const at = (d) => pos.map((v, i) => v + ({ x: [d, 0, 0], y: [0, d, 0], z: [0, 0, d] }[axis][i]));
+  add(part, geo, M(0x30353b, 0.35, 0.45), at(sgn * L / 2), ex, parent);
+  add(part, axis === "z" ? CYZ(w * 0.42, 0.03) : axis === "x" ? CYX(w * 0.42, 0.03) : CYY(w * 0.42, 0.03), BLK, at(sgn * (L + 0.015)), ex, parent);
+  add(part, BOX(...(axis === "y" ? [0.02, 0.025, 0.03] : [0.025, 0.02, 0.03])), M(0x111214, 0.2, 0.5), at(sgn * L * 0.75).map((v, i) => v + (i === 1 && axis !== "y" ? w / 2 + 0.01 : 0)), ex, parent);
+}
+// gearbox planetary: flens persegi + badan silinder
+function planetary(part, parent, pos, axis, s, r, len, ex) {
+  const sgn = Math.sign(len), L = Math.abs(len);
+  const at = (d) => pos.map((v, i) => v + ({ x: [d, 0, 0], y: [0, d, 0], z: [0, 0, d] }[axis][i]));
+  const C = axis === "z" ? CYZ : axis === "x" ? CYX : CYY;
+  add(part, axis === "z" ? BOX(s, s, L * 0.45) : axis === "x" ? BOX(L * 0.45, s, s) : BOX(s, L * 0.45, s), M(0x43484e, 0.6, 0.35), at(sgn * L * 0.775), ex, parent);
+  add(part, C(r, L * 0.55, 32), M(0x6c737a, 0.75, 0.3), at(sgn * L * 0.275), ex, parent);
+}
+// stepper NEMA17 + gearbox FLE42 + MKS di punggung
+function wristDrive(parent, pos, axis, dir, ex, mass) {
+  const at = (d) => pos.map((v, i) => v + ({ x: [d, 0, 0], y: [0, d, 0], z: [0, 0, d] }[axis][i] * dir));
+  const C = axis === "z" ? CYZ : axis === "x" ? CYX : CYY, B = (a, b) => axis === "z" ? BOX(b, b, a) : axis === "x" ? BOX(a, b, b) : BOX(b, a, b);
+  const e = (k) => ex.map(v => v * k);
+  add("gb42", C(0.021, 0.05, 28), M(0x6c737a, 0.75, 0.3), at(0.025), e(0.4), parent);
+  add("stepper", B(0.048, 0.042), M(0x26292d, 0.3, 0.5), at(0.074), e(1), parent);
+  add("stepper", B(0.006, 0.0425), M(0x9aa0a6, 0.8, 0.3), at(0.053), e(1), parent);
+  add("mks", B(0.012, 0.042), M(0x1d4ea0, 0.1, 0.55), at(0.104), e(1.8), parent);
+  if (mass) massPt(parent, at(0.06), ...mass);
+}
+const masses = [];
+function massPt(parent, pos, kg, lv) { const o = new THREE.Object3D(); o.position.set(...pos); parent.add(o); masses.push({ o, kg, lv }); return o; }
+
+// base: alas, 4 tiang hollow, pelat gearbox, pelat bearing, pelat atas; J1 menghadap atas di dalam
+const base = grp(scene, [0, 0, 0]);
+add("plat", BOX(0.30, 0.006, 0.30), ALU, [0, 0.003, 0], [0, -0.03, 0], base);
+for (const [x, z] of [[-1, -1], [1, -1], [1, 1], [-1, 1]]) add("hollow", BOX(0.05, 0.37, 0.05), ALU, [x * 0.09, 0.191, z * 0.09], [x * 0.08, 0, z * 0.08], base);
+for (const [y, e] of [[0.25, 0], [0.30, 0.04], [0.379, 0.1]]) add("plat", BOX(0.23, 0.006, 0.23), ALU, [0, y, 0], [0, e, 0], base);
+planetary("gb60", base, [0, 0.247, 0], "y", 0.06, 0.03, -0.11, [0, -0.06, 0]);
+acServo("servo400", base, [0, 0.137, 0], "y", 0.06, -0.105, [0, -0.12, 0]);
+add("kopling", CYY(0.015, 0.04), M(0xd9a441, 0.6, 0.35), [0, 0.272, 0], [0, -0.01, 0], base);
+add("as20", CYY(0.01, 0.12), STEEL, [0, 0.34, 0], [0, 0.05, 0], base);
+for (const [y, e] of [[0.309, 0.03], [0.388, 0.12]]) add("ucf", BOX(0.086, 0.012, 0.086), M(0x2d5aa8, 0.3, 0.5), [0, y, 0], [0, e, 0], base);
+add("prox", CYX(0.006, 0.05), STEEL, [0.04, 0.36, 0.08], [0.06, 0, 0.04], base);
+add("estop", CYX(0.02, 0.012), M(0xc62828, 0.1, 0.5), [0.141, 0.3, 0], [0.06, 0, 0], base);
+add("estop", BOX(0.03, 0.04, 0.04), M(0xe0b416, 0.1, 0.5), [0.125, 0.3, 0], [0.06, 0, 0], base);
+
+// J1: turntable (putar y), tiang bahu, J2 di sisi -z
+const j1 = grp(scene, [0, 0.41, 0]);
+add("plat", BOX(0.2, 0.006, 0.2), ALU, [0, -0.012, 0], [0, 0.04, 0], j1);
+add("plat", BOX(0.14, 0.15, 0.006), ALU, [0, 0.03, -0.11], [0, 0.04, -0.06], j1);
+add("plat", BOX(0.12, 0.15, 0.006), ALU, [0, 0.03, 0.04], [0, 0.04, 0.06], j1);
+add("ucp", BOX(0.035, 0.06, 0.03), M(0x2d5aa8, 0.3, 0.5), [0, H - 0.41, 0.06], [0, 0, 0.1], j1);
+planetary("gb90", j1, [0, H - 0.41, -0.114], "z", 0.09, 0.045, -0.15, [0, 0, -0.1]);
+acServo("servo750", j1, [0, H - 0.41, -0.264], "z", 0.08, -0.19, [0, 0, -0.25]);
+massPt(j1, [0, 0.05, -0.2], 6.5, 0);
+add("prox", CYZ(0.006, 0.05), STEEL, [0.06, H - 0.41 - 0.05, 0.065], [0.04, 0, 0.06], j1);
+
+// J2: lengan atas (offset z), J3 di ujungnya
+const j2 = grp(j1, [0, H - 0.41, 0]);
+add("hollow", BOX(L2, 0.05, 0.05), ALU, [L2 / 2, 0, ZA], [0, 0.05, 0], j2);
+add("plat", BOX(0.1, 0.1, 0.006), ALU, [0.0, 0, ZA - 0.028], [0, 0.05, -0.03], j2);
+add("plat", BOX(0.11, 0.1, 0.006), ALU, [L2, 0, ZA - 0.028], [0, 0.05, -0.03], j2);
+add("as20", CYZ(0.01, 0.13), STEEL, [0, 0, 0.0], [0, 0, 0.12], j2);
+planetary("gb60b", j2, [L2, 0, ZA - 0.031], "z", 0.06, 0.03, -0.1, [0, 0.05, -0.1]);
+acServo("servo400b", j2, [L2, 0, ZA - 0.131], "z", 0.06, -0.16, [0, 0.05, -0.2]);
+massPt(j2, [L2 / 2, 0, ZA], 0.79 * L2 + 0.30, 1);
+massPt(j2, [L2, 0, ZA - 0.13], 3.30, 1);
+add("prox", CYZ(0.006, 0.05), STEEL, [L2 - 0.05, -0.04, ZA + 0.03], [0, -0.05, 0.05], j2);
+
+// J3: lengan bawah di bidang z = 0; J4 sebaris sumbu lengan
+const j3 = grp(j2, [L2, 0, 0]);
+add("plat", BOX(0.09, 0.09, 0.006), ALU, [0, 0, -0.028], [0, 0, 0.04], j3);
+add("plat", BOX(0.018, 0.07, 0.07), ALU, [0.03, 0, 0], [0, 0, 0.04], j3);
+wristDrive(j3, [0.17, 0, 0], "x", -1, [-0.03, 0.06, 0], [0.86, 2]);
+add("plat", BOX(0.006, 0.07, 0.07), ALU, [0.117, 0, 0], [0, 0.04, 0], j3);
+for (const dy of [-1, 1]) add("plat", BOX(0.09, 0.006, 0.07), ALU, [0.075, dy * 0.033, 0], [0, dy * 0.06, 0], j3);
+const j4 = grp(j3, [0.17, 0, 0]);
+add("hollow", BOX(L3 - 0.17 - 0.035, 0.05, 0.05), ALU, [(L3 - 0.17 - 0.035) / 2, 0, 0], [0.03, 0, 0], j4);
+massPt(j4, [(L3 - 0.17) / 2, 0, 0], 0.79 * L3 + 0.15, 3);
+for (const dz of [-1, 1]) add("plat", BOX(0.07, 0.05, 0.006), ALU, [L3 - 0.17 - 0.005, 0, dz * 0.034], [0.05, 0, dz * 0.03], j4);
+wristDrive(j4, [L3 - 0.17, 0, -0.037], "z", -1, [0.04, 0, -0.08], [0.86, 3]);
+
+// J5: angguk pergelangan; J6 sebaris alat
+const j5 = grp(j4, [L3 - 0.17, 0, 0]);
+add("plat", BOX(0.03, 0.045, 0.06), ALU, [0.012, 0, 0], [0.04, 0, 0], j5);
+wristDrive(j5, [0.13, 0, 0], "x", -1, [-0.02, 0.06, 0], null);
+massPt(j5, [0.06, 0, 0], 0.75, 4);
+// J6: gripper capit (dipasang sisi punggung motor diputar ke depan: disederhanakan sebaris)
+const j6 = grp(j5, [0.13, 0, 0]);
+add("gripper", BOX(0.006, 0.05, 0.07), ALU, [0, 0, 0], [0.04, 0, 0], j6);
+add("servog", BOX(0.02, 0.04, 0.054), M(0x1b1d20, 0.2, 0.5), [0.015, 0.03, 0], [0.04, 0.05, 0], j6);
+add("tof", BOX(0.003, 0.012, 0.02), M(0x6a2c91, 0.1, 0.55), [0.005, -0.016, 0], [0.04, -0.03, 0], j6);
+const fingers = [-1, 1].map(s => {
+  const f = grp(j6, [0, 0, s * 0.027]);
+  add("gripper", BOX(0.05, 0.012, 0.004), ALU, [0.025, 0, 0], [0.06, 0, s * 0.02], f);
+  add("gripper", BOX(0.012, 0.016, 0.005), M(0x26282b, 0, 0.95), [0.035, 0, -s * 0.004], [0.06, 0, s * 0.02], f);
+  return f;
+});
+massPt(j6, [0.02, 0, 0], 0.40, 5);
+const tcp = new THREE.Object3D(); tcp.position.set(LT - 0.13, 0, 0); j6.add(tcp);
+const payPt = massPt(j6, [LT - 0.13, 0, 0], 0, 5);
+const PAY = masses[masses.length - 1];
+const groups = [j1, j2, j3, j4, j5, j6], AX = ["y", "z", "z", "x", "z", "x"];
+
+// panel listrik (pintu dilepas), di luar jangkauan
+const panel = grp(scene, [-0.85, 0, -0.85]); panel.rotation.y = Math.PI / 4;
+const GREY = M(0xd3d6d8, 0.3, 0.6);
+add("panel", BOX(0.30, 0.40, 0.006), GREY, [0, 0.2, -0.09], [0, 0, -0.05], panel);
+for (const s of [-1, 1]) add("panel", BOX(0.006, 0.40, 0.18), GREY, [s * 0.15, 0.2, 0], [s * 0.05, 0, 0], panel);
+add("panel", BOX(0.30, 0.006, 0.18), GREY, [0, 0.003, 0], [0, -0.03, 0], panel);
+add("panel", BOX(0.30, 0.006, 0.18), GREY, [0, 0.397, 0], [0, 0.05, 0], panel);
+const drv = (part, x, w) => { add(part, BOX(w, 0.16, 0.14), BLK, [x, 0.29, -0.015], [0, 0, 0.12], panel); add(part, BOX(w * 0.7, 0.03, 0.002), M(0x0a84ff, 0.1, 0.5), [x, 0.34, 0.056], [0, 0, 0.12], panel); };
+drv("servo400", -0.11, 0.04); drv("servo400b", -0.06, 0.04); drv("servo750", -0.002, 0.05);
+add("psu", BOX(0.06, 0.2, 0.11), M(0xa7adb2, 0.7, 0.35), [0.095, 0.29, -0.03], [0.06, 0, 0.1], panel);
+add("din", BOX(0.26, 0.035, 0.008), STEEL, [0, 0.12, -0.08], [0, 0, 0.04], panel);
+add("mcb", BOX(0.036, 0.085, 0.07), M(0xf2f2f2, 0.1, 0.5), [-0.1, 0.12, -0.045], [0, 0, 0.1], panel);
+add("kontaktor", BOX(0.045, 0.075, 0.08), M(0x5b6066, 0.2, 0.5), [-0.045, 0.12, -0.04], [0, 0, 0.1], panel);
+for (let i = 0; i < 8; i++) add("terminal", BOX(0.0052, 0.045, 0.045), M(0x9a9fa3, 0.1, 0.6), [0.03 + i * 0.006, 0.12, -0.055], [0, 0, 0.08], panel);
+add("relay", BOX(0.04, 0.05, 0.02), M(0x1d4ea0, 0.1, 0.55), [0.11, 0.12, -0.07], [0, 0, 0.1], panel);
+add("buck", BOX(0.04, 0.06, 0.02), M(0x1d4ea0, 0.1, 0.55), [0.11, 0.05, -0.07], [0, 0, 0.1], panel);
+add("pcb", BOX(0.09, 0.07, 0.002), M(0x2f7d4f, 0.1, 0.6), [-0.03, 0.05, -0.08], [0, 0, 0.12], panel);
+add("mcu", BOX(0.053, 0.021, 0.004), M(0x15171a, 0.1, 0.6), [-0.03, 0.06, -0.076], [0, 0, 0.16], panel);
+add("estop", CYZ(0.02, 0.012), M(0xc62828, 0.1, 0.5), [-0.06, 0.32, 0.105], [0, 0, 0.08], panel);
+add("estop", BOX(0.05, 0.05, 0.02), M(0xe0b416, 0.1, 0.5), [-0.06, 0.32, 0.092], [0, 0, 0.08], panel);
+add("start", CYZ(0.014, 0.012), M(0x2e9e4f, 0.1, 0.5), [0.06, 0.32, 0.1], [0, 0, 0.08], panel);
+add("stlink", BOX(0.05, 0.012, 0.018), M(0x8a8f94, 0.5, 0.4), [0.2, 0.009, 0.05], [0.05, 0, 0], panel);
+
+// kamera stereo di tripod (eye-to-hand)
+const pod = grp(scene, [0.3, 0, -1.1]);
+for (let i = 0; i < 3; i++) { const a = i * 2.094; add("tripod", CYY(0.008, 1.22), M(0x1b1d20, 0.3, 0.5), [0.17 * Math.cos(a), 0.6, 0.17 * Math.sin(a)], [0, 0, 0], pod, [-Math.sin(a) * 0.14, 0, Math.cos(a) * 0.14]); }
+add("tripod", CYY(0.012, 0.35), M(0x1b1d20, 0.3, 0.5), [0, 1.35, 0], [0, 0.05, 0], pod);
+const camRig = grp(pod, [0, 1.55, 0]); camRig.lookAt(new THREE.Vector3(0.5, 0.05, 0.05)); camRig.rotateY(Math.PI);
+add("kamera", BOX(0.11, 0.03, 0.025), M(0x1b1d20, 0.2, 0.5), [0, 0, 0], [0, 0.1, 0], camRig);
+for (const dx of [-0.03, 0.03]) add("kamera", CYZ(0.008, 0.01, 24), M(0x0a0c10, 0.6, 0.2), [dx, 0, -0.016], [0, 0.1, 0], camRig);
+
+// benda uji: kubus baja 40 mm (0,5 kg) dan penanda tujuan
+const PICK = new THREE.Vector3(0.70, 0, -0.30), PLACE = new THREE.Vector3(0.30, 0, 0.55);
+const cube = new THREE.Mesh(BOX(0.04, 0.04, 0.04), M(0x3a6ea5, 0.6, 0.35));
+cube.castShadow = cube.receiveShadow = true; cube.position.set(PICK.x, 0.02, PICK.z); scene.add(cube);
+const markMat = new THREE.MeshBasicMaterial({ color: 0x2e9e4f, transparent: true, opacity: 0.5 });
+const mark = new THREE.Mesh(new THREE.RingGeometry(0.035, 0.045, 4, 1, Math.PI / 4), markMat); mark.rotation.x = -Math.PI / 2; mark.position.set(PLACE.x, 0.002, PLACE.z); scene.add(mark);
+const tgtMark = new THREE.Mesh(new THREE.RingGeometry(0.012, 0.02, 24), new THREE.MeshBasicMaterial({ color: 0xb54708 })); tgtMark.rotation.x = -Math.PI / 2; tgtMark.visible = false; scene.add(tgtMark);
+
+// ---------- urai & pilih ----------
+let explode = 0;
+function applyExplode() { for (const m of meshes) m.position.copy(m.userData.base).addScaledVector(m.userData.ex, explode); }
+function paint() {
+  const acc = new THREE.Color(css("--accent"));
+  for (const m of meshes) {
+    const on = selected === m.userData.part, dim = selected && !on;
+    if (!m.material.userData.own) { m.material = m.material.clone(); m.material.userData.own = true; }
+    m.material.transparent = !!dim; m.material.opacity = dim ? 0.16 : 1; m.material.depthWrite = !dim;
+    m.material.emissive.copy(on ? acc : new THREE.Color(0)); m.material.emissiveIntensity = on ? 0.45 : 0;
+  }
+}
+document.getElementById("explode").addEventListener("input", e => { explode = +e.target.value; applyExplode(); });
+const ray = new THREE.Raycaster(), tofRay = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  if (mode === "s") {
+    const hit = ray.intersectObject(floor, false)[0];
+    if (hit) { target.set(hit.point.x, 0, hit.point.z); stopDemo(); goTarget(); }
+    return;
+  }
+  const hit = ray.intersectObjects(meshes, false)[0];
+  select(hit ? hit.object.userData.part : null);
+  if (hit) listEl.querySelector(`[data-id="${hit.object.userData.part}"]`)?.scrollIntoView({ block: "nearest" });
+});
+
+// ---------- kinematika ----------
+const LIM = [[-170, 170], [-20, 110], [-150, 150], [-180, 180], [-125, 125], [-180, 180]].map(a => a.map(v => v * RAD));
+const VMAX = [1.2, 1.0, 1.2, 3, 3, 3], AMAX = [2, 2, 3, 6, 6, 6]; // rad/s, rad/s²
+const clampJ = (q, i) => Math.min(LIM[i][1], Math.max(LIM[i][0], q));
+// IK posisi, gripper menghadap bawah. Hasil {q, ok}
+function ik(p, yaw = 0) {
+  const q1 = Math.atan2(-p.z, p.x), r = Math.hypot(p.x, p.z);
+  const dx = r, dy = p.y + LT - H;
+  let D = Math.hypot(dx, dy), ok = true;
+  if (D > L2 + L3 - 1e-3) { D = L2 + L3 - 1e-3; ok = false; }
+  if (D < Math.abs(L2 - L3) + 0.02) { D = Math.abs(L2 - L3) + 0.02; ok = false; }
+  const c3 = (D * D - L2 * L2 - L3 * L3) / (2 * L2 * L3), a3 = Math.acos(Math.max(-1, Math.min(1, c3)));
+  const phi = Math.atan2(dy, dx);
+  const q2 = phi + Math.atan2(L3 * Math.sin(a3), L2 + L3 * Math.cos(a3)), q3 = -a3;
+  const q = [q1, q2, q3, 0, -Math.PI / 2 - (q2 + q3), yaw];
+  q.forEach((v, i) => { const c = clampJ(v, i); if (Math.abs(c - v) > 1e-6) ok = false; q[i] = c; });
+  return { q, ok };
+}
+
+// ---------- kamera ----------
+const VIEWS = { iso: [2.0, 1.45, 2.15], top: [0.0001, 3.0, 0.0001], side: [0, 0.3, 2.4], front: [2.4, 0.4, 0] };
+function setView(v) { const t = new THREE.Vector3(0.25, 0.4, 0); controls.target.copy(t); camera.position.copy(t).add(new THREE.Vector3(...VIEWS[v])); controls.update(); }
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- simulasi ----------
+const HOME = [0, 60 * RAD, -100 * RAD, 0, -50 * RAD, 0];
+const q = HOME.slice(), qd = [0, 0, 0, 0, 0, 0], qt = HOME.slice(), acc = [0, 0, 0, 0, 0, 0];
+const target = new THREE.Vector3(0.6, 0, 0);
+let gripClosed = false, gripPos = 0, payOn = true, holding = false, reachOK = true, demo = null;
+const peak = [0, 0, 0, 0, 0, 0];
+function applyQ() {
+  j1.rotation.y = q[0]; j2.rotation.z = q[1]; j3.rotation.z = q[2]; j4.rotation.x = q[3]; j5.rotation.z = q[4]; j6.rotation.x = q[5];
+  const gap = 0.027 - gripPos * 0.007; fingers[0].position.z = -gap; fingers[1].position.z = gap;
+}
+function goTarget() {
+  const p = target.clone(); p.y = +document.getElementById("tz").value / 1000;
+  const s = ik(p, 0); s.q.forEach((v, i) => qt[i] = v); reachOK = s.ok;
+  tgtMark.position.set(target.x, 0.002, target.z); tgtMark.visible = true; syncSliders();
+}
+function step(dt) {
+  for (let i = 0; i < 6; i++) {
+    const e = qt[i] - q[i], vWant = Math.sign(e) * Math.min(VMAX[i], Math.sqrt(2 * AMAX[i] * Math.abs(e)) * 0.95);
+    const v0 = qd[i], dv = Math.max(-AMAX[i] * dt, Math.min(AMAX[i] * dt, vWant - v0));
+    qd[i] = Math.abs(e) < 1e-4 && Math.abs(v0) < 0.02 ? 0 : v0 + dv;
+    acc[i] = (qd[i] - v0) / Math.max(dt, 1e-3);
+    if (Math.abs(e) <= Math.abs(qd[i]) * dt + 1e-5 && Math.abs(qd[i]) <= AMAX[i] * dt * 1.5) { q[i] = qt[i]; qd[i] = 0; }
+    else q[i] += qd[i] * dt;
+  }
+  gripPos += Math.sign((gripClosed ? 1 : 0) - gripPos) * Math.min(Math.abs((gripClosed ? 1 : 0) - gripPos), dt * 2.5);
+  applyQ();
+  if (demo) runDemo(dt);
+}
+const settled = () => q.every((v, i) => Math.abs(qt[i] - v) < 2e-3 && Math.abs(qd[i]) < 0.02);
+const up = v => v.clone().setY(0.15), at = v => v.clone().setY(0.02);
+const SEQ = [
+  { p: () => up(PICK) }, { p: () => at(PICK) }, { grip: true }, { p: () => up(PICK) },
+  { p: () => up(PLACE) }, { p: () => at(PLACE) }, { grip: false }, { p: () => up(PLACE) }, { home: true },
+];
+function runDemo(dt) {
+  const s = SEQ[demo.i];
+  if (!demo.started) {
+    demo.started = true; demo.t = 0;
+    if (s.p) { const r = ik(s.p(), 0); r.q.forEach((v, i) => qt[i] = v); reachOK = r.ok; }
+    if (s.home) HOME.forEach((v, i) => qt[i] = v);
+    if (s.grip !== undefined) setGrip(s.grip);
+  }
+  demo.t += dt;
+  const done = s.grip !== undefined ? demo.t > 0.6 : settled();
+  if (done) {
+    if (s.grip === true) { j6.attach(cube); holding = true; }
+    if (s.grip === false) { scene.attach(cube); cube.position.y = 0.02; cube.rotation.set(0, cube.rotation.y, 0); holding = false; }
+    demo.i++; demo.started = false;
+    if (demo.i >= SEQ.length) { demo.i = 0; [PICK.x, PICK.z, PLACE.x, PLACE.z] = [PLACE.x, PLACE.z, PICK.x, PICK.z]; mark.position.set(PLACE.x, 0.002, PLACE.z); }
+  }
+  syncSliders();
+}
+function setGrip(c) { gripClosed = c; const b = document.getElementById("grip"); b.setAttribute("aria-pressed", c); b.textContent = c ? "Buka gripper" : "Tutup gripper"; }
+const demoBtn = document.getElementById("demo");
+function stopDemo() { demo = null; demoBtn.setAttribute("aria-pressed", "false"); demoBtn.textContent = "Demo ambil-taruh"; }
+demoBtn.addEventListener("click", () => {
+  if (demo) { stopDemo(); return; }
+  if (holding) { scene.attach(cube); cube.position.y = 0.02; holding = false; }
+  PICK.set(cube.position.x, 0, cube.position.z);
+  setGrip(false); tgtMark.visible = false; demo = { i: 0, started: false, t: 0 };
+  demoBtn.setAttribute("aria-pressed", "true"); demoBtn.textContent = "Hentikan demo";
+});
+document.getElementById("home").addEventListener("click", () => { stopDemo(); HOME.forEach((v, i) => qt[i] = v); tgtMark.visible = false; reachOK = true; syncSliders(); });
+document.getElementById("stretch").addEventListener("click", () => { stopDemo(); [0, 0, 0, 0, 0, 0].forEach((v, i) => qt[i] = v); tgtMark.visible = false; reachOK = true; syncSliders(); });
+const payBtn = document.getElementById("pay");
+payBtn.addEventListener("click", () => { payOn = !payOn; payBtn.setAttribute("aria-pressed", payOn); peak.fill(0); });
+document.getElementById("grip").addEventListener("click", () => { stopDemo(); setGrip(!gripClosed); });
+const tz = document.getElementById("tz"), tzo = document.getElementById("tzo");
+tz.addEventListener("input", () => { tzo.textContent = tz.value + " mm"; if (tgtMark.visible) goTarget(); });
+
+// slider sendi
+const JN = ["J1 base", "J2 bahu", "J3 siku", "J4 putar", "J5 angguk", "J6 gripper"];
+const sl = document.getElementById("sliders");
+const sliders = JN.map((n, i) => {
+  const l = document.createElement("label");
+  l.innerHTML = `<span>${n}</span><input type="range" min="${Math.round(LIM[i][0] / RAD)}" max="${Math.round(LIM[i][1] / RAD)}" step="1" aria-label="Sudut ${n}"><output></output>`;
+  sl.appendChild(l);
+  const inp = l.querySelector("input");
+  inp.addEventListener("input", () => { stopDemo(); qt[i] = +inp.value * RAD; tgtMark.visible = false; reachOK = true; });
+  return { inp, out: l.querySelector("output") };
+});
+function syncSliders() { sliders.forEach((s, i) => { if (document.activeElement !== s.inp) s.inp.value = Math.round(qt[i] / RAD); }); }
+
+// torsi tiap sendi: gravitasi (statik) + inersia × percepatan, massa titik di dunia nyata
+const CAP = [1.27 * 10 * 0.95, Math.min(2.39 * 50 * 0.92, 56), 1.27 * 20 * 0.92, 3.6, 3.6, 3.6];
+const BL = [15, 15, 5, 15, 15, 15].map(a => a / 60 * RAD); // backlash (rad), asumsi kecuali J3
+const G = 9.81;
+function torques() {
+  scene.updateMatrixWorld(true);
+  PAY.kg = payOn && (holding || (!demo && gripClosed)) ? 0.5 : 0;
+  const pts = masses.map(m => ({ kg: m.kg, lv: m.lv, p: m.o.getWorldPosition(new THREE.Vector3()) }));
+  const tip = tcp.getWorldPosition(new THREE.Vector3());
+  let bl = 0;
+  const out = groups.map((g, j) => {
+    const o = g.getWorldPosition(new THREE.Vector3());
+    const a = new THREE.Vector3(AX[j] === "x" ? 1 : 0, AX[j] === "y" ? 1 : 0, AX[j] === "z" ? 1 : 0).applyQuaternion(g.getWorldQuaternion(new THREE.Quaternion()));
+    let ts = 0, I = j === 0 ? 0.15 : 0;
+    for (const m of pts) if (m.lv >= j) {
+      const r = m.p.clone().sub(o);
+      ts += r.clone().cross(new THREE.Vector3(0, -m.kg * G, 0)).dot(a);
+      const perp = r.clone().sub(a.clone().multiplyScalar(r.dot(a)));
+      I += m.kg * perp.lengthSq();
+    }
+    const rt = tip.clone().sub(o); bl += BL[j] * rt.sub(a.clone().multiplyScalar(rt.dot(a))).length();
+    const t = Math.abs(ts) + I * Math.abs(acc[j]);
+    return { t, p: t / CAP[j] * 100 };
+  });
+  return { out, tip, bl };
+}
+
+// tab
+function setMode(mo) {
+  mode = mo;
+  for (const key of ["k", "s"]) { tabs[key].setAttribute("aria-selected", key === mo); panes[key].hidden = key !== mo; panes[key].style.display = key === mo ? "flex" : ""; }
+  if (mo === "s") { explode = 0; document.getElementById("explode").value = 0; applyExplode(); select(null); }
+  else stopDemo();
+  document.getElementById("hint").textContent = mo === "s" ? "Klik meja untuk memindah ujung gripper. Seret untuk memutar sudut pandang." : "Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.";
+}
+tabs.k.addEventListener("click", () => setMode("k")); tabs.s.addEventListener("click", () => setMode("s"));
+[tabs.k, tabs.s].forEach(t => t.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = t === tabs.k ? tabs.s : tabs.k; n.focus(); n.click(); } }));
+
+// telemetri
+const $ = id => document.getElementById(id);
+const jt = $("jt");
+JN.forEach((n, i) => jt.insertAdjacentHTML("beforeend", `<tr><th scope="row">${n}</th><td id="ja-${i}"></td><td id="jq-${i}"></td></tr>`));
+const level = p => p > 100 ? ["lebih", "state-hit"] : p > 80 ? ["berat", "state-warn"] : ["aman", "state-ok"];
+function tele() {
+  const { out, tip, bl } = torques();
+  const camPos = camRig.getWorldPosition(new THREE.Vector3()), f = 640, B = 0.06;
+  sliders.forEach((s, i) => s.out.textContent = `${num(q[i] / RAD, 1)}°`);
+  let worst = 0;
+  out.forEach((o, i) => {
+    peak[i] = Math.max(peak[i], o.p); if (peak[i] > peak[worst]) worst = i;
+    const [lab, cls] = level(o.p);
+    $(`ja-${i}`).textContent = `${num(q[i] / RAD, 1)}°`;
+    $(`jq-${i}`).innerHTML = `${num(o.t, 1)} / ${num(CAP[i], 1)} N·m · <span class="${cls}">${num(o.p, 0)}% ${lab}</span><div class="bar"><i class="${cls}" style="width:${Math.min(100, o.p)}%"></i></div>`;
+  });
+  const [wl, wc] = level(peak[worst]);
+  $("t-max").innerHTML = `${JN[worst]}: ${num(peak[worst], 0)}% rated <span class="${wc}">(${wl})</span>`;
+  $("t-p").textContent = `${num(tip.x * 1000, 0)}, ${num(-tip.z * 1000 || 0, 0)}, ${num(tip.y * 1000, 0)} mm`;
+  const rr = Math.hypot(tip.x, tip.z);
+  $("t-r").innerHTML = `${num(rr * 1000, 0)} mm <small style="color:var(--muted)">/ 1000</small>`;
+  $("t-st").innerHTML = !reachOK ? '<span class="state-hit">di luar jangkauan</span>' : demo ? "demo berjalan" : settled() ? '<span class="state-ok">diam di target</span>' : "bergerak";
+  // ToF: ke arah jepit (sumbu x lokal gripper) sampai meja atau kubus
+  const dir = new THREE.Vector3(1, 0, 0).applyQuaternion(j6.getWorldQuaternion(new THREE.Quaternion()));
+  const from = j6.getWorldPosition(new THREE.Vector3());
+  tofRay.set(from, dir); tofRay.far = 2;
+  const hit = tofRay.intersectObjects(holding ? [floor] : [cube, floor], false)[0];
+  $("t-tof").textContent = holding ? "benda di antara jari" : hit ? `${num(hit.distance * 1000, 0)} mm` : "di luar jangkauan";
+  $("t-pay").textContent = `${num(PAY.kg, 1)} kg${gripClosed ? ", jepit" : ""}`;
+  $("t-bl").textContent = `±${num(bl * 1000, 1)} mm`;
+  const Z = camPos.distanceTo(tip);
+  $("t-cam").textContent = `±${num(Z * Z / (f * B) * 0.25 * 1000, 1)} mm di ${num(Z, 2)} m`;
+}
+
+// ---------- loop ----------
+function resize() {
+  const r = stage.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+applyQ(); syncSliders(); setView("iso"); select(null);
+let last = performance.now(), tAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  step(dt);
+  controls.update(); renderer.render(scene, camera);
+  if ((tAcc += dt) > 0.15) { tAcc = 0; tele(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>

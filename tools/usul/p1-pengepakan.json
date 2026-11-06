@@ -1,7 +1,7 @@
 {
   "docx": "PLC_specs.docx",
   "judul_dosen": "Konveyor pengepakan",
-  "nama": "P1 Konveyor Pengepakan",
+  "nama": "Konveyor pengepakan",
   "html": "p1-pengepakan.html",
   "usul": {
     "1": ["Tetap 2 sub-konveyor. Infeed dipasang sejajar di samping packing; produk ditahan palang di ujung infeed tepat di atas stasiun isi, lalu didorong silinder menyamping lewat talang ke kardus 40 × 30 × 25 cm di konveyor packing.",

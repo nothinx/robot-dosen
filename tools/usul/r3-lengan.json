@@ -1,0 +1,41 @@
+{
+  "docx": "robotic_arm_specs.docx",
+  "judul_dosen": "Lengan robot",
+  "nama": "Lengan robot",
+  "html": "r3-lengan.html",
+  "usul": {
+    "1": [
+      "6-DOF (J1 putar base, J2 bahu, J3 siku, J4 putar lengan bawah, J5 angguk pergelangan, J6 putar gripper), jangkauan horizontal 1000 mm dari sumbu base: lengan atas 450 mm + lengan bawah 380 mm + pergelangan ke ujung gripper 170 mm; sumbu bahu 490 mm di atas meja.",
+      "Beban tidak disebut di spesifikasi; ditetapkan 0,5 kg di ujung pada jangkauan penuh (alat praktikum ambil-taruh, benda uji kubus baja 40 mm). Semua motor dan gearbox dihitung untuk beban ini."
+    ],
+    "2": [
+      "Aluminium 6061: lengan dari hollow 50 × 50 × 1,5 mm (0,79 kg/m), base & braket dari pelat 6 mm, poros baja stainless Ø20 mm, bearing UCF/UCP 204. Massa bagian bergerak ±7,8 kg termasuk beban.",
+      "Lendutan sudut di beban penuh: lengan atas 0,05°, lengan bawah 0,02°. Pelat dipotong & dibor di bengkel kampus."
+    ],
+    "3": [
+      "Gripper capit paralel aluminium (bukaan 55 mm) digerakkan servo digital DS3225 25 kg·cm. Gaya jepit perlu 12 N (gesek 0,4, faktor aman 2), tersedia ±40 N.",
+      "Flens J6 berupa pelat 6 mm sehingga gripper bisa diganti tool lain."
+    ],
+    "4": [
+      "J1–J3: servo AC 220 V 17-bit + driver (mode posisi, kecepatan, torsi) + gearbox planetary presisi. J1 400 W + PLF60 1:10; J2 750 W ber-rem + PLF90 2 tahap 1:50; J3 400 W ber-rem + gearbox 60 mm 1:20. Rem menahan lengan saat daya putus/E-stop.",
+      "J4–J6: stepper NEMA17 + gearbox planetary 1:10 + driver closed-loop MKS SERVO42D (enkoder 14-bit, FOC, mode posisi/kecepatan, bus RS485 Modbus).",
+      "Dasar perhitungan (lengan terentang, beban 0,5 kg, torsi rated motor × rasio × efisiensi, dibatasi rating gearbox): J1 perlu 6,7 dari 12,1 N·m (55%), J2 51,9 dari 56 N·m (93%), J3 14,3 dari 23,4 N·m (61%), J5 1,9 dari 3,6 N·m (52%). Servo 400 W + gearbox 1:10 di bahu hanya 12,1 N·m, jadi tidak cukup."
+    ],
+    "5": [
+      "Diganti STM32 Black Pill WeAct STM32F411CEU6 (Cortex-M4 100 MHz + FPU), sama dengan robot beroda, sebagai pengendali sendi waktu-nyata: pulsa langkah 3 servo AC lewat optocoupler 6N137, bus RS485 ke 3 MKS, PWM gripper, sensor ToF & homing, pemantauan E-stop. Pemrograman lewat ST-Link V2.",
+      "Kinematika balik (IK) dan olah kamera stereo dijalankan di PC/laptop lab, mengirim sudut sendi ke Black Pill lewat USB. Alasan: Arduino Mega 8-bit 16 MHz tanpa FPU terlalu lemah untuk IK 6-DOF dan tidak sanggup mengolah citra stereo."
+    ],
+    "6": [
+      "Backlash tiap sendi ≤ 0,5°: J3 5 arcmin (data toko), J1/J2 ≤ 15 arcmin (kelas gearbox planetary PLF), J4–J6 disyaratkan ≤ 30 arcmin ke penjual. Galat ujung terburuk (jumlah semua sendi) ±10 mm di jangkauan penuh.",
+      "Kekakuan: lendutan tabung ≤ 0,05°, puntir gearbox J2 ±7 arcmin dan J3 ±5 arcmin di beban penuh. Resolusi enkoder di sendi: J1–J3 ≤ 1 detik busur, J4–J6 0,13 arcmin."
+    ],
+    "7": [
+      "Enkoder: 17-bit di tiap servo AC (J1–J3) dan 14-bit magnetik di tiap MKS SERVO42D (J4–J6). Proksimitas: 6 sensor induktif LJ12A3-4-Z/BX untuk titik nol tiap sendi + sensor jarak ToF VL53L0X di telapak gripper untuk memastikan benda ada sebelum menjepit.",
+      "Kamera stereoskopik: modul USB dua lensa 2560 × 720, 30 fps, tersinkron (sama dengan robot berkaki), dipasang tetap di tripod di luar jangkauan lengan. Ketelitian kedalaman ±4 mm di 0,8 m dan ±9 mm di 1,2 m."
+    ],
+    "8": [
+      "Tetap 220 VAC: kabel berarde → MCB 2P 10 A → kontaktor LC1D09 (tombol START, 2 tombol E-stop seri) → 3 driver servo AC. PSU Mean Well LRS-200-24 (24 V 8,8 A) untuk driver MKS, rem, sensor & logika; buck 6,5 V untuk servo gripper; relay 24 V membuka rem dari sinyal driver (gagal-aman). Semua dalam box panel 40 × 30 × 18 cm.",
+      "E-stop memutus daya motor, sedangkan PSU 24 V dan Black Pill tetap hidup sehingga status tetap terbaca dan rem mengunci."
+    ]
+  }
+}
