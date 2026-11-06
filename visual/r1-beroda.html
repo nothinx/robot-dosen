@@ -182,7 +182,7 @@ const PARTS = [
   { id: "driver", nama: "Driver Cytron MDD10A", qty: 1, harga: 575000, toko: "KHURS IOT", url: T + "khurs-iot/cytron-10amp-5v-30v-dc-motor-driver-2-channels-10a-mdd10a",
     spek: ["2 kanal, 5–30 V", "10 A kontinu, 30 A puncak per kanal", "Masukan PWM + DIR, cocok untuk logika 3,3 V", "Kebutuhan nyata ±1–3 A per motor", "±84 × 62 mm (estimasi)"] },
   { id: "mcu", nama: "STM32 Black Pill WeAct F411CEU6", qty: 1, harga: 147000, toko: "HwThinker", url: T + "hwthinker/weact-stm32f411ceu6-stm32-stm32f4-arm-cortex-m4-blackpill-flety-v3-1-f411-058a9",
-    spek: ["Cortex-M4 100 MHz + FPU, 512 KB flash, 128 KB RAM", "Rencana timer: TIM3 & TIM4 mode enkoder, TIM1 PWM motor, TIM2/TIM5 input capture ultrasonik", "53 × 21 mm, ditancap di PCB pembawa (hijau di model)", "Pengendali yang sama dipakai di R3"] },
+    spek: ["Cortex-M4 100 MHz + FPU, 512 KB flash, 128 KB RAM", "Rencana timer: TIM3 & TIM4 mode enkoder, TIM1 PWM motor, TIM2/TIM5 input capture ultrasonik", "53 × 21 mm, ditancap di PCB pembawa (hijau di model) di dek bawah", "Pengendali yang sama dipakai di R3"] },
   { id: "stlink", nama: "Programmer ST-Link V2 mini", qty: 1, harga: 39000, toko: "ichibot", url: T + "ichibot/st-link-v2-stlink-mini-stm8-stm32-stlink-downloader-programming",
     spek: ["SWD: SWDIO, SWCLK, GND, 3V3", "Alat bengkel, tidak terpasang di robot"], off: true },
   { id: "baterai", nama: "LiPo CNHL 4S 5000 mAh 70C", qty: 1, harga: 895000, toko: "e-Hely", url: T + "e-hely/cnhl-5000mah-14-8v-4s-70c-lipo-battery-with-xt90-connector",
@@ -196,15 +196,19 @@ const PARTS = [
   { id: "kaster", nama: "Roda kastor PU 1,5 inci", qty: 1, harga: 6900, toko: "Milano Teknik", url: T + "milanoteknik/roda-1-5-inchi-pu-tetap-hidup-rem-screw-wo-heavy-duty-double-bearing-kastor-caster-troli-1729966729469855894",
     spek: ["Putar, double bearing", "Diganjal spacer ±12 mm supaya dek rata"] },
   { id: "pelat", nama: "Pelat aluminium 3 mm, 2 dek", qty: 18, harga: 16897, toko: "Findustri", url: T + "findustri/plat-alumunium-3mm-alumunium-plate-harga-per-10x10-cm2-1729850499413280597",
-    spek: ["2 × 350 × 250 mm, dihitung per potong 10 × 10 cm", "Jarak antar dek 60 mm", "Status toko: pre-order"] },
+    spek: ["2 × 350 × 250 mm, dihitung per potong 10 × 10 cm", "Jarak antar dek 60 mm", "Dek atas = lantai bak muatan, dek bawah = semua elektronik", "Status toko: pre-order"] },
+  { id: "bak", nama: "Siku aluminium 20 × 20 × 2 mm, 1 m", qty: 2, harga: 45600, toko: "Findustri", url: T + "findustri/siku-aluminium-t-2-mm-20-x-20-mm-per-100cm-1730956039605815125",
+    spek: ["Dinding bak muatan 20 mm di 4 sisi, keliling ±1,04 m", "Bak 270 × 250 mm di dek atas, lantai bersih ±266 × 246 mm", "Pusat bak 30 mm di belakang poros roda: ±77% beban di roda penggerak", "Lubang tali pengikat dibor di dinding"] },
+  { id: "alas", nama: "Alas karet anti-slip 30 × 30 cm", qty: 1, harga: 28000, toko: "Cipta Raya Mandiri", url: T + "ciptarayamandiri/alas-karet-anti-slip-serbaguna-30-x-30-untuk-tabung-gas-tektaf-1730861787565163728",
+    spek: ["Dipotong ±230 × 210 mm, ditempel di lantai bak", "Barang tidak bergeser saat robot mengerem"] },
   { id: "ultra", nama: "Ultrasonik HC-SR04 3,3 V", qty: 3, harga: 19330, toko: "Rajacell", url: T + "rajacell/sensor-ultrasonic-hc-sr04-3-3v-sensor-jarak-esp8266-raspberry-stm32",
-    spek: ["Jangkauan 2–400 cm, sudut pancar ±15°", "Depan, kiri-depan 30°, kanan-depan 30°", "Aman untuk I/O 3,3 V STM32"] },
+    spek: ["Jangkauan 2–400 cm, sudut pancar ±15°", "Depan, kiri-depan 30°, kanan-depan 30°", "Dipasang di celah antar dek supaya tidak terhalang muatan", "Aman untuk I/O 3,3 V STM32"] },
   { id: "ir", nama: "Modul IR TCRT5000", qty: 2, harga: 6500, toko: "CNC Store Bandung", url: T + "cncstorebandung/sensor-line-tracking-line-follower-robot-sensor-inframerah-tcrt5000",
     spek: ["Jangkauan pantul ±1–25 mm", "Braket turun, ±10 mm dari lantai", "Deteksi garis atau tepi"] },
   { id: "limit", nama: "Limit switch Omron V-156-1C25", qty: 2, harga: 5250, toko: "Supreme ID", url: T + "supreme/v-156-1c25-omron-micro-limit-contact-switch-long-hinge-roller-lever",
     spek: ["Tuas roller panjang, sudut depan kiri dan kanan", "Sinyal bumper ke GPIO + interrupt"] },
   { id: "estop", nama: "Tombol E-stop 22 mm LA38", qty: 1, harga: 14500, toko: "CNC Store Bandung", url: T + "cncstorebandung/push-button-emergency-stop-self-locking-22mm-10a-upto-660vac-la38-11zs",
-    spek: ["Mengunci, kontak NC 10 A", "Memutus daya motor, logika tetap hidup"] },
+    spek: ["Mengunci, kontak NC 10 A", "Memutus daya motor, logika tetap hidup", "Di jalur belakang dek atas, di luar bak muatan"] },
   { id: "sekring", nama: "Sekring blade 15 A", qty: 1, harga: 500, toko: "Mitra Abadi", url: T + "mitraspareparts/fuse-blade-besar-sekring-tancap-mobil-atc-15a-15-ampere-19mm",
     spek: ["Di jalur positif baterai, sebelum E-stop"] },
 ];
@@ -232,7 +236,7 @@ PARTS.forEach(p => {
 function renderDetail() {
   const p = PARTS.find(x => x.id === selected);
   if (!p) {
-    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian robot di model. Geser "Urai" untuk melihat dek bawah.</p>`;
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian robot di model. Geser "Urai" untuk melihat dek bawah. Dek atas adalah bak muatan 5 kg.</p>`;
     return;
   }
   detailEl.innerHTML = `<h2>${p.nama}</h2>
@@ -367,26 +371,40 @@ add("buck", BOX(0.012, 0.01, 0.018), M(0x9aa0a6, 0.8, 0.3), [-0.045, DB + 0.012,
 add("sekring", BOX(0.02, 0.012, 0.01), M(0x111111, 0.1, 0.6), [0.04, DB + 0.006, -0.075], [0, 0, 0], [0, 0.03, 0]);
 add("sekring", BOX(0.012, 0.012, 0.004), M(0x2b6cd4, 0.1, 0.4), [0.04, DB + 0.017, -0.075], [0, 0, 0], [0, 0.03, 0]);
 
-// dek atas: PCB pembawa + Black Pill, E-stop, ultrasonik
+// PCB pembawa + Black Pill: dek bawah, kanan depan
+const MZ = 0.08, MEX = [0, 0.05, 0];
+add("mcu", BOX(0.09, 0.0016, 0.07), M(0x2f7d4f, 0.1, 0.6), [0.02, DB + 0.006, MZ], [0, 0, 0], MEX);
+add("mcu", BOX(0.053, 0.0016, 0.021), M(PCB_BLACK, 0.2, 0.5), [0.02, DB + 0.016, MZ], [0, 0, 0], MEX);
+add("mcu", BOX(0.007, 0.0012, 0.007), M(0x0b0b0c, 0.3, 0.4), [0.022, DB + 0.0175, MZ], [0, 0, 0], MEX);
+add("mcu", BOX(0.009, 0.0032, 0.009), M(0xc4c9cc, 0.9, 0.25), [-0.0045, DB + 0.018, MZ], [0, 0, 0], MEX);
+for (const dz of [-0.0095, 0.0095]) add("mcu", BOX(0.05, 0.0085, 0.0025), M(0x111111, 0.1, 0.6), [0.02, DB + 0.011, MZ + dz], [0, 0, 0], MEX);
+// dek atas: E-stop di jalur belakang, bak muatan di depannya
 const DT = PT + 0.0015;
-add("mcu", BOX(0.09, 0.0016, 0.07), M(0x2f7d4f, 0.1, 0.6), [0.02, DT + 0.006, 0], [0, 0, 0], UP);
-add("mcu", BOX(0.053, 0.0016, 0.021), M(PCB_BLACK, 0.2, 0.5), [0.02, DT + 0.016, 0], [0, 0, 0], UP);
-add("mcu", BOX(0.007, 0.0012, 0.007), M(0x0b0b0c, 0.3, 0.4), [0.022, DT + 0.0175, 0], [0, 0, 0], UP);
-add("mcu", BOX(0.009, 0.0032, 0.009), M(0xc4c9cc, 0.9, 0.25), [-0.0045, DT + 0.018, 0], [0, 0, 0], UP);
-for (const dz of [-0.0095, 0.0095]) add("mcu", BOX(0.05, 0.0085, 0.0025), M(0x111111, 0.1, 0.6), [0.02, DT + 0.011, dz], [0, 0, 0], UP);
-add("estop", BOX(0.068, 0.05, 0.068), M(0xf2c12e, 0.05, 0.5), [-0.12, DT + 0.025, 0.07], [0, 0, 0], UP);
-add("estop", CY(0.012, 0.012, 24), M(0xd9dde0, 0.8, 0.3), [-0.12, DT + 0.056, 0.07], [0, 0, 0], UP);
-add("estop", CY(0.02, 0.014, 32), M(0xc62828, 0.1, 0.45), [-0.12, DT + 0.069, 0.07], [0, 0, 0], UP);
+add("estop", BOX(0.068, 0.05, 0.068), M(0xf2c12e, 0.05, 0.5), [-0.135, DT + 0.025, 0.07], [0, 0, 0], UP);
+add("estop", CY(0.012, 0.012, 24), M(0xd9dde0, 0.8, 0.3), [-0.135, DT + 0.056, 0.07], [0, 0, 0], UP);
+add("estop", CY(0.02, 0.014, 32), M(0xc62828, 0.1, 0.45), [-0.135, DT + 0.069, 0.07], [0, 0, 0], UP);
 const ULTRA = [{ z: -0.08, a: Math.PI / 6 }, { z: 0, a: 0 }, { z: 0.08, a: -Math.PI / 6 }];
 for (const u of ULTRA) {
-  const g = new THREE.Group(); g.position.set(0.158, DT + 0.016, u.z); g.rotation.y = u.a; robot.add(g);
-  const EXU = [0.05, 0.12, 0];
+  const g = new THREE.Group(); g.position.set(0.165, PB + 0.04, u.z); g.rotation.y = u.a; robot.add(g);
+  const EXU = [0.08, 0, 0];
   add("ultra", BOX(0.0016, 0.02, 0.045), M(0x1f5fbf, 0.1, 0.55), [0, 0, 0], [0, 0, 0], EXU, g);
   for (const dz of [-0.013, 0.013]) {
     add("ultra", new THREE.CylinderGeometry(0.008, 0.008, 0.012, 20).rotateZ(Math.PI / 2), M(0xc9ced2, 0.8, 0.3), [0.007, 0, dz], [0, 0, 0], EXU, g);
   }
   add("ultra", BOX(0.016, 0.0025, 0.03), M(ALU, 0.6, 0.4), [-0.006, -0.0115, 0], [0, 0, 0], EXU, g);
 }
+// bak muatan: siku 20×20×2 keliling, alas karet
+const BX0 = -0.095, BX1 = 0.175, BZ = 0.125, BC = (BX0 + BX1) / 2, BL = BX1 - BX0, SIKU = M(0xa9b1b8, 0.65, 0.35), BEX = [0, 0.2, 0];
+for (const s of [-1, 1]) {
+  add("bak", BOX(BL, 0.02, 0.002), SIKU, [BC, DT + 0.01, s * (BZ - 0.001)], [0, 0, 0], BEX);
+  add("bak", BOX(BL, 0.002, 0.02), SIKU, [BC, DT + 0.001, s * (BZ - 0.01)], [0, 0, 0], BEX);
+  const x = s > 0 ? BX1 - 0.001 : BX0 + 0.001;
+  add("bak", BOX(0.002, 0.02, 2 * BZ), SIKU, [x, DT + 0.01, 0], [0, 0, 0], BEX);
+  add("bak", BOX(0.02, 0.002, 2 * BZ), SIKU, [x - s * 0.009, DT + 0.001, 0], [0, 0, 0], BEX);
+}
+add("alas", BOX(BL - 0.04, 0.003, 2 * BZ - 0.04), M(0x26282b, 0, 0.95), [BC, DT + 0.0015, 0], [0, 0, 0], [0, 0.16, 0]);
+const cargo = new THREE.Mesh(BOX(0.2, 0.1, 0.18), M(0xc49a5c, 0, 0.85));
+cargo.position.set(BC, DT + 0.053, 0); cargo.castShadow = true; cargo.visible = false; robot.add(cargo);
 // bawah depan: IR & limit switch
 for (const s of [-1, 1]) {
   add("ir", BOX(0.003, 0.05, 0.016), M(ALU, 0.6, 0.4), [0.163, PB - 0.026, s * 0.06], [0, 0, 0], [0.04, -0.03, 0]);
@@ -443,7 +461,7 @@ document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click"
 const START = { x: -1.05, z: 0.0, th: 0 };
 const pose = { ...START };
 const B = 0.296, D = 0.085, CPR = 7 * 4 * 50.1, RPM_MAX = 150, VMAX = Math.PI * D * RPM_MAX / 60 * 0.92; // ±0,61 m/s berbeban
-const MASS_ROBOT = 3.6; // kg, estimasi dari komponen (pelat 1,4 + motor 0,9 + baterai 0,54 + lain-lain)
+const MASS_ROBOT = 4.0; // kg, estimasi dari komponen (pelat 1,4 + motor 0,9 + baterai 0,54 + siku bak 0,4 + lain-lain)
 let payload = false, auto = false, mode = "k";
 const st = { vl: 0, vr: 0, encL: 0, encR: 0, bump: false, iAvg: 0.15, autoT: 0, autoTurn: 0 };
 const hold = { f: false, b: false, l: false, r: false };
@@ -527,7 +545,7 @@ document.querySelectorAll(".pad button").forEach(b => {
 });
 const autoBtn = document.getElementById("auto"), loadBtn = document.getElementById("load");
 autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", auto); st.autoT = 0; });
-loadBtn.addEventListener("click", () => { payload = !payload; loadBtn.setAttribute("aria-pressed", payload); });
+loadBtn.addEventListener("click", () => { payload = !payload; cargo.visible = payload; loadBtn.setAttribute("aria-pressed", payload); });
 document.getElementById("reset").addEventListener("click", () => {
   Object.assign(pose, START); Object.assign(st, { vl: 0, vr: 0, encL: 0, encR: 0 }); setView("iso");
 });
