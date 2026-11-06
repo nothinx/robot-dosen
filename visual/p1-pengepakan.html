@@ -1,0 +1,877 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Model 3D dan simulasi stasiun PLC P1 konveyor pengepakan: infeed, packing, silinder pendorong, load cell, enkoder, tabel I/O S7-1200, komponen dan harga.">
+<title>P1 Konveyor Pengepakan</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* design · layar aplikasi (visualisasi teknik) · dial E1/R1/M1 · tanda tangan: model 3D + tabel I/O PLC hidup ·
+   font Plex Sans Condensed (judul), Plex Sans (isi), Plex Mono (angka & alamat I/O) */
+/* Layout: kanvas 3D mengisi kiri, panel kerja 380px di kanan; di HP kanvas di atas, panel di bawah. */
+:root {
+  --bg: #eef1f2; --panel: #ffffff; --fg: #16202a; --muted: #55626e; --line: #d3d9de;
+  --accent: #b54708; --accent-fg: #ffffff; --accent-soft: #fbeee4;
+  --ok: #1e7a46; --caution: #8a5a00; --warn: #b42318; --scene: #dde3e7; --floor: #c9d1d6;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+    --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+    --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+  --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+  --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow-x: clip; }
+body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 18px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 15px; margin: 0; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 6px; }
+.total b { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+.seg button { min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 14px var(--f-body); cursor: pointer; }
+.seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+  color: var(--fg); font: 500 13px var(--f-body); cursor: pointer; touch-action: none; user-select: none; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"], .btn.on { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.views .btn { min-height: 36px; background: var(--panel); }
+label.row { display: flex; align-items: center; gap: 10px; }
+label.row output { font-family: var(--f-mono); font-size: 13px; min-width: 64px; text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { flex: 1; accent-color: var(--accent); min-height: 32px; }
+input[type=checkbox] { width: 20px; height: 20px; accent-color: var(--accent); }
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; text-align: left;
+  min-height: 44px; padding: 8px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--fg); font: inherit; cursor: pointer; }
+.item:hover { background: var(--bg); }
+.item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .n { font-weight: 500; min-width: 0; }
+.item .p { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .q { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.item .off { color: var(--muted); }
+.grp { font-family: var(--f-display); font-weight: 600; font-size: 13px; color: var(--muted); padding: 10px 6px 4px; border-bottom: 1px solid var(--line); }
+.detail { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.detail ul { margin: 0; padding-left: 18px; }
+.detail li + li { margin-top: 3px; }
+.detail a { color: var(--accent); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cell { background: var(--panel); padding: 8px 10px; min-width: 0; }
+.cell span { display: block; color: var(--muted); font-size: 12px; }
+.cell b { font-family: var(--f-mono); font-weight: 500; font-size: 15px; font-variant-numeric: tabular-nums; }
+.cell.wide { grid-column: 1 / -1; }
+.state-ok { color: var(--ok); } .state-hit { color: var(--warn); } .state-warn { color: var(--caution); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.pbs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.pbs .btn { padding: 0 6px; }
+.pbs .btn small { display: block; font: 400 11px var(--f-mono); opacity: .75; }
+.btn.start { border-color: var(--ok); } .btn.stop { border-color: var(--warn); }
+.btn.estop { width: 100%; border: 2px solid var(--warn); color: var(--warn); font-weight: 600; }
+.btn.estop[aria-pressed="true"] { background: var(--warn); color: #fff; border-color: var(--warn); }
+.err { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--fg); }
+.sub a { color: var(--accent); font-weight: 600; }
+.io { width: 100%; border-collapse: collapse; font-size: 12px; }
+.io th, .io td { border-bottom: 1px solid var(--line); padding: 4px 4px; text-align: left; vertical-align: top; }
+.io thead th { color: var(--muted); font-weight: 500; }
+.io td.a { font-family: var(--f-mono); white-space: nowrap; }
+.io td.v { font-family: var(--f-mono); text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 1px solid var(--muted); vertical-align: -1px; }
+.dot.on { background: var(--ok); border-color: var(--ok); }
+.dot.cut { background: transparent; border-color: var(--warn); border-style: dashed; }
+.status { padding: 10px 12px; border-radius: 6px; border: 1px solid var(--line); font-weight: 600; }
+.status.f { border-color: var(--warn); color: var(--warn); }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .stage { height: 58vh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="views" role="group" aria-label="Sudut pandang">
+      <button class="btn" data-view="iso">Isometrik</button>
+      <button class="btn" data-view="top">Atas</button>
+      <button class="btn" data-view="side">Samping</button>
+      <button class="btn" data-view="fill">Stasiun isi</button>
+    </div>
+    <p class="hint" id="hint">Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.</p>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <h1>P1 Konveyor Pengepakan</h1>
+      <nav class="sub"><a href="../index.html">← Semua alat</a></nav>
+      <p class="sub">Infeed 1500 × 100 mm mengantar produk, silinder mendorongnya ke kardus di konveyor packing 2000 × 600 mm,
+        load cell menimbang, enkoder mengukur langkah kotak. PLC Siemens S7-1200. Harga Tokopedia per 7 Nov 2026.</p>
+    </header>
+    <div class="total"><span>Perkiraan RAB, belum ongkir</span><b id="total">Rp0</b></div>
+
+    <div class="seg" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-k" aria-selected="true" aria-controls="pane-k">Komponen</button>
+      <button role="tab" id="tab-s" aria-selected="false" aria-controls="pane-s">Simulasi</button>
+    </div>
+
+    <section id="pane-k" role="tabpanel" aria-labelledby="tab-k" style="display:flex;flex-direction:column;gap:14px">
+      <label class="row" for="explode">Urai <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
+      <div class="detail" id="detail" aria-live="polite"></div>
+      <div class="list" id="list"></div>
+      <p class="note">Kompresor dibeli sekali di P1 dan dipakai bersama P2 (selang ke stasiun sebelah). Biaya bubut dan las adalah estimasi
+        dari harga satuan toko jasa; angka pastinya dari penawaran bengkel. Alat bengkel tidak masuk RAB.</p>
+    </section>
+
+    <section id="pane-s" role="tabpanel" aria-labelledby="tab-s" hidden style="flex-direction:column;gap:14px">
+      <div class="status" id="st" role="status">Berhenti</div>
+      <div class="pbs" role="group" aria-label="Tombol panel">
+        <button class="btn start" data-pb="start">Start<small>I0.7</small></button>
+        <button class="btn stop" data-pb="stop">Stop<small>I1.0</small></button>
+        <button class="btn" data-pb="reset">Reset<small>I1.1</small></button>
+        <button class="btn" data-pb="push">Dorong<small>I1.2</small></button>
+      </div>
+      <button class="btn estop" id="estop" aria-pressed="false">E-stop (memutus daya aktuator)</button>
+      <div class="seg" role="group" aria-label="Selektor mode, I1.3">
+        <button id="m-auto" aria-pressed="true">Auto</button>
+        <button id="m-man" aria-pressed="false">Manual</button>
+      </div>
+      <p class="note" id="mhint"></p>
+      <label class="row" for="tgt">Produk per kotak <input type="range" id="tgt" min="4" max="20" step="1" value="10"><output id="tgt-o">10</output></label>
+      <label class="row" for="rate">Laju produk <input type="range" id="rate" min="6" max="30" step="1" value="20"><output id="rate-o">20 /mnt</output></label>
+      <label class="row" for="comp">Kompensasi luncur <input type="range" id="comp" min="0" max="15" step="1" value="6"><output id="comp-o">6 mm</output></label>
+      <div class="tools">
+        <label class="row" for="op"><input type="checkbox" id="op" checked> Operator otomatis</label>
+        <button class="btn" id="put">Taruh kardus</button>
+        <button class="btn" id="take">Ambil kardus penuh</button>
+      </div>
+      <div class="grid2">
+        <div class="cell"><span>Belt infeed</span><b id="t-vi">0,00 m/s</b></div>
+        <div class="cell"><span>Belt packing</span><b id="t-vp">0,00 m/s</b></div>
+        <div class="cell"><span>Arus motor infeed</span><b id="t-ii">0,0 A</b></div>
+        <div class="cell"><span>Arus motor packing</span><b id="t-ip">0,0 A</b></div>
+        <div class="cell"><span>HSC1 enkoder</span><b id="t-hsc">0</b></div>
+        <div class="cell"><span>Galat berhenti terakhir</span><b id="t-err">-</b></div>
+        <div class="cell"><span>Berat di load cell</span><b id="t-w">0,00 kg</b></div>
+        <div class="cell"><span>Berat bersih kotak</span><b id="t-net">-</b></div>
+        <div class="cell"><span>Produk di kotak</span><b id="t-n">0 / 10</b></div>
+        <div class="cell"><span>Kotak selesai</span><b id="t-done">0</b></div>
+        <div class="cell wide"><span>Kotak terakhir</span><b id="t-last">-</b></div>
+        <div class="cell"><span>Produk didorong</span><b id="t-push">0</b></div>
+        <div class="cell"><span>Laju</span><b id="t-rate">-</b></div>
+      </div>
+      <h3>I/O PLC CPU 1214C (hidup)</h3>
+      <table class="io" aria-label="Masukan digital">
+        <thead><tr><th scope="col">DI</th><th scope="col">Tag</th><th scope="col">Arti</th><th scope="col">Nilai</th></tr></thead>
+        <tbody id="di"></tbody>
+      </table>
+      <table class="io" aria-label="Keluaran digital">
+        <thead><tr><th scope="col">DO</th><th scope="col">Tag</th><th scope="col">Arti</th><th scope="col">Nilai</th></tr></thead>
+        <tbody id="do"></tbody>
+      </table>
+      <table class="io" aria-label="Masukan analog">
+        <thead><tr><th scope="col">AI</th><th scope="col">Tag</th><th scope="col">Arti</th><th scope="col">Nilai</th></tr></thead>
+        <tbody id="ai"></tbody>
+      </table>
+      <p class="note">Lingkaran putus-putus merah: catu common 1L diputus kontak NC E-stop, jadi motor dan katup mati secara kabel walau program keliru.</p>
+      <p class="note">Model: belt packing 0,16 m/s (motor 2000 rpm, gearhead 1:50, pulley Ø76,2 mm), infeed 0,22 m/s (1:36).
+        Enkoder 1000 P/R dibaca x4 = 16.709 cacah per meter belt, pitch kotak 500 mm. Belt meluncur ±6 mm setelah motor mati;
+        geser "Kompensasi luncur" untuk melihat galat berhenti. Load cell 50 kg ke transmitter 0-10 V, AI 10 bit (±50 g per langkah).
+        Angka untuk gambaran, bukan hasil uji.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const T = "https://www.tokopedia.com/";
+const GROUPS = { plc: "PLC & panel kontrol", pe: "Sensor", motor: "Penggerak", kompresor: "Pneumatik", hollow: "Konstruksi konveyor" };
+const PARTS = [
+  { id: "plc", nama: "PLC Siemens S7-1200 CPU 1214C AC/DC/RLY", qty: 1, harga: 7650000, toko: "Rajalistrik Cibatu", url: T + "rajalistrikcibatu/plc-siemens-s7-1200-simatic-cpu-1214c-ac-dc-relay-6es7214-1bg40-0xb0",
+    spek: ["6ES7214-1BG40-0XB0, catu 220 VAC langsung", "14 DI 24 VDC (sink/source lewat 1M), 10 DO relay 2 A, 2 AI 0-10 V", "HSC1 di I0.0/I0.1 untuk enkoder A/B, Ethernet PROFINET, diprogram TIA Portal", "Dipakai 13 DI, 6 DO, 1 AI; sisa untuk latihan"] },
+  { id: "psu", nama: "Catu daya Meanwell NDR-240-24 (24 V 10 A)", qty: 1, harga: 783200, toko: "Magna Automation", url: T + "magnaautomation/mean-well-meanwell-ndr-240-24-240w-24vdc-10a-industrial-din-rail-smp",
+    spek: ["Beban terburuk 7,6 A: 2 motor × 3,5 A pengenal + katup, sensor, lampu, transmitter", "EDR-120-24 (5 A) tidak cukup untuk dua motor 60 W", "Rel DIN, pengaman hubung singkat bawaan"] },
+  { id: "box", nama: "Box panel besi 50 × 40 × 20 cm 1,2 mm", qty: 1, harga: 397750, toko: "Toko Panel Kita", url: T + "tokopanelkita/box-panel-indoor-50-x-40-x-20-cm-1-2-mm",
+    spek: ["Pintu memuat 3 lampu, 4 tombol, selektor, E-stop", "Dalam: 2 rel DIN, PLC, PSU, MCB, relay, terminal, transmitter, 2 pengatur kecepatan motor"] },
+  { id: "mcb", nama: "MCB Schneider iC60N 2P 6 A", qty: 1, harga: 125000, toko: "Badja Electric", url: T + "badjaelectric/mcb-ic60n-2p-6a-6ka-schneider-2phase-2pole",
+    spek: ["Pemutus utama 220 VAC untuk PLC dan PSU", "Kompresor dicolok terpisah ke stop kontak sendiri (1100 W)"] },
+  { id: "relay", nama: "Relay Omron LY2N 24 VDC 10 A + soket", qty: 2, harga: 85000, toko: "YANJAYARAYA", url: T + "1213/relay-omron-ly2n-led-lampu-24vdc-soket-relay-8pin-10a-24vdc-omron-1-set-1730867747797108613",
+    spek: ["K1 motor infeed (Q0.0), K2 motor packing (Q0.1)", "Relay PLC hanya 2 A; motor 3,5 A pengenal butuh relay perantara", "Kontak memutus catu 24 V ke pengatur kecepatan motor"] },
+  { id: "tombol", nama: "Push button LA38-11BN 22 mm", qty: 4, harga: 13500, toko: "Tenako Electric", url: T + "tenako/push-button-22mm-la38-11bn-flat-switch-10a-momentary-maintained-putih-momentary",
+    spek: ["Pilih warna: Start hijau, Stop merah, Reset biru, Dorong kuning", "1 NO + 1 NC; Stop dipasang NC supaya kabel putus = berhenti"] },
+  { id: "selektor", nama: "Selector switch XB2-ED21 2 posisi", qty: 1, harga: 12000, toko: "ITERNO ELEKTRIK", url: T + "iternoelektrik/selector-switch-22mm-xb2-ed21-1no-2-posisi-iterno",
+    spek: ["Auto / Manual ke I1.3", "Manual: tahan Start = jalankan packing, tahan Reset = jalankan infeed, tahan Dorong = silinder maju"] },
+  { id: "estop", nama: "Tombol emergency stop 22 mm", qty: 1, harga: 19000, toko: "Tenako Electric", url: T + "tenako/push-button-emergency-stop-maintained-lock-switch-22mm",
+    spek: ["Kontak NC memutus +24 V ke common relay 1L (motor dan katup) secara kabel, bukan lewat program", "Sisi setelah E-stop juga masuk I1.4 supaya PLC tahu dan masuk mode gangguan"] },
+  { id: "lampu", nama: "Pilot lamp LED AD16-22DS 24 V", qty: 3, harga: 5500, toko: "ITERNO ELEKTRIK", url: T + "iternoelektrik/pilot-lamp-led-22mm-220vac-ad16-22ds-iterno-1738209145103942940",
+    spek: ["Hijau jalan (Q0.5), kuning menunggu/manual (Q0.6), merah gangguan/E-stop (Q0.7)", "Pilih varian 24 V, warna masing-masing"] },
+  { id: "terminal", nama: "Terminal block UK-3N rel DIN", qty: 30, harga: 2000, toko: "Automa-88", url: T + "automa88/uk-3n-universal-terminal-block-din-rail-0-2-2-5mm-800v-32a-uk3n",
+    spek: ["Semua kabel lapangan (sensor, motor, katup) mendarat di terminal, bukan langsung ke PLC", "Termasuk jalur +24 V dan 0 V bersama"] },
+  { id: "rel", nama: "Rel DIN 1 m", qty: 1, harga: 21300, toko: "megalistrik.id", url: T + "megalistrikid/rel-mcb-1-meter-din-rail-aluminium-1m-rel-omega-1-fungsi",
+    spek: ["Dipotong dua 36 cm"] },
+  { id: "duct", nama: "Kabel duct 25 × 25 mm", qty: 2, harga: 8000, toko: "Kanglistrik28", url: T + "kanglistrik/kabel-duct-kabel-dak-25x25-mm-pvc-putih",
+    spek: ["Jalur kabel di dalam panel"] },
+  { id: "nyaf", nama: "Kabel NYAF 0,75 mm² 100 m", qty: 1, harga: 180000, toko: "Boskabel", url: T + "boskabel123/kabel-elektronic-serabut-kabel-nyaf-daisaku-0-75mm-1x0-75mm-100-m-dahulu-merk-pulung-1731174825557787935", nomesh: true,
+    spek: ["Pengawatan dalam panel (I/O, lampu, tombol)"] },
+  { id: "nyyhy", nama: "Kabel NYYHY 3 × 1,5 mm² per meter", qty: 20, harga: 26454, toko: "Surga Kabel", url: T + "surgakabel/nyyhy-3x1-5mm-supreme-kabel-serabut-3-x-1-5mm-3x1-5-3-x-1-5", nomesh: true,
+    spek: ["Kabel daya masuk, motor, katup, dan sambungan kabel sensor ke panel", "±20 m untuk dua konveyor"] },
+  { id: "gland", nama: "Cable gland PG9", qty: 12, harga: 900, toko: "iterno listrik", url: T + "iternolistrik/cable-gland-kabel-gland-pg9-pg-9-4-8mm-iterno-putih", nomesh: true,
+    spek: ["Lubang kabel di dasar box panel"] },
+  { id: "steker", nama: "Steker arde Broco", qty: 1, harga: 13600, toko: "WOBBLE", url: T + "wobble/steker-arde-broco-13310-colokan-broco-arde-13310", nomesh: true,
+    spek: ["Box panel dan rangka konveyor dibumikan"] },
+
+  { id: "pe", nama: "Sensor fotoelektrik E3F-DS30P1 PNP", qty: 2, harga: 70000, toko: "tokoautomation", url: T + "tokoautomation/e3f-ds30p1-e3f-ds30p1-pnp-diffuse-photoelectric-sensor-switch-pl29",
+    spek: ["Difus M18, jarak 30 cm bisa disetel, PNP NO, 10-30 VDC", "PE1 (I0.2): di palang ujung infeed, melihat produk yang menempel palang; jarak disetel ±5 cm", "PE2 (I0.4): di sisi packing x = +500 mm, melihat kardus penuh yang belum diambil"] },
+  { id: "prox", nama: "Proksimitas kapasitif LJC18A3-H-Z/BY PNP", qty: 1, harga: 99195, toko: "Rajacell", url: T + "rajacell/capasitance-proximity-sensor-ljc18a3-h-z-by-10mm-6-36v-dc-pnp-switch",
+    spek: ["PX1 (I0.3): mendeteksi kardus di stasiun isi lewat lubang pemandu samping", "Kapasitif karena kardus bukan logam (sensor induktif tidak bisa)", "Jarak deteksi sampai 10 mm: kardus berjalan menempel pemandu"] },
+  { id: "braket", nama: "Braket L sensor M18", qty: 3, harga: 12500, toko: "tokoautomation", url: T + "tokoautomation/m18-proximity-switch-sensor-photoelectric-l-mounting-bracket-ps61",
+    spek: ["Dudukan PE1, PE2, PX1"] },
+  { id: "enkoder", nama: "Enkoder Omron E6B2-CWZ5B 1000 P/R PNP", qty: 1, harga: 450000, toko: "PLC Centre", url: T + "plccentre/omron-e6b2-cwz5b-incremental-rotary-encoder-1731435457897727641",
+    spek: ["Pilih varian 1000 P/R. Keluaran PNP open collector, 12-24 VDC, poros 6 mm", "Di poros pulley ekor packing (tidak digerakkan motor, jadi selip motor tidak terbaca sebagai gerak)", "A ke I0.0, B ke I0.1, HSC1 mode A/B x4: 4000 cacah per putaran = 0,06 mm per cacah", "Frekuensi A pada 0,16 m/s ±670 Hz, jauh di bawah batas HSC 100 kHz"] },
+  { id: "kopenk", nama: "Kopling fleksibel 6 × 8 mm", qty: 1, harga: 14000, toko: "aisyah arduino bandung", url: T + "aisyaharduino/flexible-shaft-6x8-mm-coupling-cnc-motor-coupler-6mm-to-8-mm-d19l25",
+    spek: ["Poros enkoder 6 mm ke ujung as pulley yang dibubut 8 mm"] },
+  { id: "loadcell", nama: "Load cell single point Zemic L6E 50 kg", qty: 1, harga: 990000, toko: "dhscale", url: T + "timbangann/load-cell-single-point-zemic-l6e-kap-50kg-100kg-200kg-300kg-50kg",
+    spek: ["Di bawah pelat timbang 420 × 420 mm di stasiun isi; belt lewat di atasnya", "Kardus 400 × 300 mm harus seluruhnya di atas pelat: toleransi posisi ±10 mm", "Kapasitas 50 kg untuk 20 kg isi + pelat + hentakan dorongan"] },
+  { id: "transmitter", nama: "Transmitter load cell WXD-D70 0-10 V", qty: 1, harga: 345000, toko: "Automa-88", url: T + "automa88/wxd-d70-loadcell-transmitter-output-4-20ma-0-5v-0-10v-load-cell-transmitter-transducer-sensor-amplifier-to-current-converter-dc-24v-1734224283693647759",
+    spek: ["Catu 24 VDC, DIP switch ke 0-10 V, ke AI0 (%IW64)", "Akurasi 0,2% FS = ±0,1 kg; AI S7-1200 10 bit = ±50 g per langkah", "Nol dan span dikalibrasi dengan beban acuan, disimpan sebagai parameter di PLC"] },
+
+  { id: "motor", nama: "Motor Houle 5DC60W 24 V + gearhead 5GU + pengatur kecepatan", qty: 2, harga: 1584000, toko: "HOULE Motor", url: T + "houlemotor/houle-motor-60w-12v-24v-dc-5dc-variable-speed-control-motor-gearbox-set-60watt-dinamo-induction-gearhead-5gn-5gu-reversible-5dc60w-5dc60r-12vdc-24vdc-1732814463841633935",
+    spek: ["60 W, 24 VDC, 3,5 A, 2000 rpm; set termasuk pengatur kecepatan DC", "Packing: varian 5GU50K (1:50), 40 rpm, belt 0,16 m/s", "Infeed: varian 5GU36K (1:36), 55 rpm, 8,55 N·m, belt 0,22 m/s", "Perlu di pulley packing: F = 0,33 × (20 + 2,9) kg × 9,81 × 1,15 = 85 N → 3,2 N·m, 13,6 W keluaran. Motor 60 W × 0,7 efisiensi gear = 42 W: cadangan 3×"] },
+  { id: "kopmotor", nama: "Kopling fleksibel aluminium 15 ke 20 mm", qty: 2, harga: 211200, toko: "Toneto Shop", url: T + "tonetoshop/aluminium-flexible-shaft-coupling-15-to-20-mm",
+    spek: ["Poros gearhead 5GU 15 mm ke as pulley kepala 20 mm"] },
+
+  { id: "kompresor", nama: "Kompresor oilless JLD 30 L 1100 W", qty: 1, harga: 1413600, toko: "JLD.Tools", url: T + "jinluda/jld-kompresor-angin-30l-oilless-listrik-1100w-alat-tekanan-udara-220v-mesin-pompa-angin-kompresor-pompa-angin-ban-mobil-kompresor-kendaraan-1731180137217034098",
+    spek: ["Dibeli sekali di P1, dipakai bersama P2", "Silinder P1 memakai ±2,3 NL per dorongan pada 6 bar; 20 dorongan per menit = ±45 NL/menit", "Tanpa oli: udara bersih untuk area kemasan"] },
+  { id: "frl", nama: "Unit FRL Airtac AFC-2000 1/4 inci", qty: 1, harga: 135000, toko: "Mandiri Tekno Jaya", url: T + "mandiriteknojaya/afc2000-air-filter-regulator-lubricator-drat-1-4-inc-airtac-taiwan",
+    spek: ["Filter, regulator, lubrikator dengan manometer", "Tekanan kerja disetel 4 bar: gaya dorong silinder 32 mm ±320 N, sudah berlebih untuk produk 1 kg"] },
+  { id: "katup", nama: "Katup solenoid 5/2 Airtac 4V210-08 24 VDC", qty: 1, harga: 59500, toko: "Kitamura Part", url: T + "kitamurapart/selenoid-valve-solenoid-valve-airtac-4v210-08-dc-24",
+    spek: ["Y1 (Q0.2), solenoid tunggal pegas balik: daya hilang = silinder mundur", "Port 1/4\", koil ±2,5 W"] },
+  { id: "silinder", nama: "Silinder Airtac SC 32 × 200 SCA (bermagnet)", qty: 1, harga: 333210, toko: "BestlinkPneumaticHydraulic", url: T + "bestlinkpneumatic/sc-32x200-airtac-standard-cylinder-pneumatic-sc-sc32x200-sca-ca-sc32x200-9e1a2",
+    spek: ["Pendorong produk dari infeed ke talang kardus, langkah 200 mm", "Piston bermagnet (kode S) untuk reed switch", "Kecepatan diatur speed controller ±0,4 m/s"] },
+  { id: "reed", nama: "Reed switch Airtac CS1-F", qty: 2, harga: 50400, toko: "All About Industry Store", url: T + "aais/cs1-f-magnetic-sensor-switch-airtac-cs1f",
+    spek: ["B0 mundur (I0.5), B1 maju (I0.6)", "Dua kabel: coklat ke +24 V, biru ke masukan PLC"] },
+  { id: "lb32", nama: "Braket kaki LB-32 silinder SC", qty: 2, harga: 19700, toko: "DUNIA ARTOMORO TEKNIK", url: T + "duniaartomoro/lb-32-mounting-l-cylinder-kotak-sc-tbc-type-lb-32",
+    spek: ["Silinder dibaut ke pelat dudukan di atas tiang"] },
+  { id: "fj", nama: "Floating joint M10 × 1,25", qty: 1, harga: 62800, toko: "Kitamura Part", url: T + "kitamurapart/floating-joint-untuk-cylinder-body-25-dan-32-drat-m10-x-1-25-1731637244011251671",
+    spek: ["Ujung batang silinder ke pelat pendorong; menyerap salah sumbu"] },
+  { id: "selang", nama: "Selang PU 8 × 5 mm per meter", qty: 10, harga: 4200, toko: "Utama Machinery", url: T + "umachinery/selang-pu-pollyurethane-ukuran-od-8mm-x-5-mm-harga-permeter-1730582353555916368", nomesh: true,
+    spek: ["Kompresor → FRL → katup → silinder"] },
+  { id: "fitting", nama: "Fitting push-in PC 8-02", qty: 6, harga: 2200, toko: "Kitamura Part", url: T + "kitamurapart/mpc-08-02-fitting-pneumatic-lurus-male-8mm-drat-1-4-pc-08-02", nomesh: true,
+    spek: ["Port 1/4\" katup (P, A, B) dan FRL masuk/keluar"] },
+  { id: "flow", nama: "Speed controller SL 8-01", qty: 2, harga: 6600, toko: "Kitamura Part", url: T + "kitamurapart/msl-08-01-fitting-pneumatic-speed-control-8mm-drat-1-8-sl-08-01-1732039308957812695", nomesh: true,
+    spek: ["Di dua port 1/8\" silinder, mengatur kecepatan maju dan mundur (meter-out)"] },
+  { id: "silencer", nama: "Silencer BSL-02 1/4 inci", qty: 2, harga: 3400, toko: "Kitamura Part", url: T + "kitamurapart/bsl-02-silencer-kuningan-kerucut-pneumatic-1-4-bsl02", nomesh: true,
+    spek: ["Port buang katup"] },
+  { id: "coupler", nama: "Quick coupler SH-20 1/4 inci selang 8 mm", qty: 1, harga: 8500, toko: "SIPUT BALAP STORE", url: T + "siputbalapstore/sambungan-kopler-slang-selang-kompresor-quick-coupler-ph-sh-20-1-4-8mm-sh-20-1-4", nomesh: true,
+    spek: ["Sambungan cepat dari keluaran kompresor"] },
+
+  { id: "hollow", nama: "Pipa kotak stainless 304 40 × 40 × 1,5 mm, 6 m", qty: 4, harga: 758880, toko: "BANUSSTEELL", url: T + "banussteel-1/pipa-hollow-stainless-304-40-x-40-x-1-5-mm-panjang-6-meter-4-x-4-cm-1733059111508215661",
+    spek: ["Rangka, kaki, palang kedua konveyor, tiang panel dan silinder: ±21 m", "Tinggi belt packing 750 mm, infeed 1050 mm (di atas bibir kardus 250 mm)"] },
+  { id: "plat", nama: "Plat stainless 304 1,5 mm 1,22 × 2,44 m", qty: 1, harga: 2310000, toko: "BANUSSTEELL", url: T + "banussteel-1/plat-stainless-stenlis-304-1-5-mm-x-1-22-m-x-2-44-m-dop-dof-4-x-8-ft",
+    spek: ["Alas luncur belt (slider bed) packing 2000 × 620 mm dan infeed 1500 × 120 mm", "Pelat timbang 420 × 420 mm, pemandu samping, palang ujung, talang, pelat pendorong", "Satu lembar cukup bila dipotong berurutan"] },
+  { id: "pipa", nama: "Pipa stainless 304 3 inci tebal 1,5 mm, 1 m", qty: 2, harga: 266200, toko: "BANUSSTEELL", url: T + "banussteel-1/pipa-stainless-304-3-inch-tebal-1-5-mm-panjang-1-meter-kilap",
+    spek: ["Badan 4 pulley Ø76,2 mm: packing 2 × 620 mm, infeed 2 × 130 mm", "Keliling pulley 239,4 mm"] },
+  { id: "as", nama: "As stainless 304 Ø20 mm, 1 m", qty: 3, harga: 184000, toko: "BANUSSTEELL", url: T + "banussteel-1/as-stainless-20-mm-x-1-meter-304-as-behel-bulat-solid-stainless",
+    spek: ["As tembus pulley: packing 2 × 800 mm, infeed 2 × 300 mm", "Ujung as ekor packing dibubut 8 mm untuk enkoder"] },
+  { id: "ucp", nama: "Bearing pillow block UCP204 as 20 mm", qty: 4, harga: 32500, toko: "ABADI BEARING", url: T + "abadibearings/bearing-unit-pillow-blok-ucp-204-as-20mm-asb",
+    spek: ["Pulley kepala (penggerak) kedua konveyor"] },
+  { id: "uct", nama: "Bearing take-up UCT204 as 20 mm", qty: 4, harga: 50453, toko: "DBS BEARING", url: T + "dbsbearing/bearing-unit-uct-204-nkn-diameter-as-20mm-uc204-t204-original",
+    spek: ["Pulley ekor: geser untuk menegangkan dan meluruskan belt"] },
+  { id: "beltpk", nama: "Belt PVC putih food grade 650 mm 2 mm, per meter", qty: 5, harga: 367575, toko: "Stone Rubberindo", url: T + "stonerubberindo-1/food-grade-belt-pvc-putih-650-mm-2mm-conveyor-belt-pvc-putih-65-cm",
+    spek: ["Packing: keliling 2 × 2000 + π × 78 = 4,25 m, dibeli 5 m", "Lebar 650 dipotong 600 mm atau dipesan custom"] },
+  { id: "beltin", nama: "Belt PVC putih food grade 100 mm 2 mm, per meter", qty: 4, harga: 65000, toko: "Stone Rubberindo", url: T + "stonerubberindo-1/food-grade-belt-pvc-putih-100-mm-2mm-conveyor-belt-pvc-putih-10-cm",
+    spek: ["Infeed: keliling 2 × 1500 + π × 78 = 3,25 m, dibeli 4 m"] },
+  { id: "sambung", nama: "Jasa sambung belt PVC 2-4 mm (endless)", qty: 2, harga: 200000, toko: "Conveyor DAT", url: T + "cv-dika/sambungan-conveyor-belt-pvc-dan-rubber-tebal-2-4-mm", nomesh: true,
+    spek: ["Sambungan finger/press supaya belt tanpa ujung", "Bisa juga minta toko belt mengirim langsung endless"] },
+  { id: "baut", nama: "Baut + mur stainless 304 M8 × 20", qty: 60, harga: 2098, toko: "PULO SOMEI JAYA", url: T + "pulosomeijaya/baut-mur-stainless-m8-x-20-mm-bolt-nut-stainless-steel-304", nomesh: true,
+    spek: ["Bearing, braket motor, dudukan sensor dan silinder"] },
+  { id: "bubut", nama: "Jasa bubut pulley (estimasi)", qty: 240, harga: 5000, toko: "otorbus", url: T + "otorbus/jasa-bubut-las-milling-custom-order", nomesh: true,
+    spek: ["Harga toko per satuan Rp5.000; estimasi 4 pulley ± Rp300 rb/pulley (tutup ujung, as tembus, crown, ujung as enkoder)", "Angka pasti dari penawaran bengkel"] },
+  { id: "las", nama: "Jasa las argon stainless 304 (estimasi per hari)", qty: 8, harga: 270000, toko: "Sinar Uhud", url: T + "sinaruhud/jasa-las-stainless-304-argon", nomesh: true,
+    spek: ["Estimasi 8 hari kerja tukang untuk dua rangka, kaki, braket motor, tiang panel dan silinder", "Satuan di toko tidak dijelaskan, dianggap per hari: konfirmasi ke penjual", "Pembanding konveyor jadi: Karang Mutu Abadi SS 148 × 20 cm Rp7 jt/unit, convayer.eng mulai Rp10,5 jt"] },
+  { id: "kardus", nama: "Kardus 40 × 30 × 25 cm", qty: 20, harga: 10390, toko: "Kofu Packaging", url: T + "kofu/jual-kardus-baru-40-cm-x-30-cm-x-25-cm-swr-k4160",
+    spek: ["Kemasan uji praktikum; berat kosong ±0,35 kg", "Muat 2 lapis × 12 produk 80 × 60 × 80 mm"] },
+];
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const num = (n, d) => n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+document.getElementById("total").textContent = rp(PARTS.reduce((s, p) => s + p.qty * p.harga, 0));
+
+const stage = document.getElementById("stage");
+const threeOK = !!(window.THREE && THREE.OrbitControls);
+if (!threeOK) {
+  stage.insertAdjacentHTML("beforeend", '<div class="err"><p>Model 3D gagal dimuat karena pustaka three.js tidak terunduh. Periksa koneksi lalu muat ulang halaman. Daftar komponen di panel tetap bisa dibaca.</p></div>');
+}
+
+// ---------- daftar komponen ----------
+const listEl = document.getElementById("list"), detailEl = document.getElementById("detail");
+let selected = null;
+PARTS.forEach(p => {
+  if (GROUPS[p.id]) listEl.insertAdjacentHTML("beforeend", `<div class="grp">${GROUPS[p.id]}</div>`);
+  const b = document.createElement("button");
+  b.className = "item"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="n">${p.nama}</span><span class="p">${rp(p.qty * p.harga)}</span>
+    <span class="q">${p.qty} × ${rp(p.harga)} · ${p.toko}${p.nomesh ? ' · <span class="off">tidak dimodelkan</span>' : ""}</span>`;
+  b.addEventListener("click", () => select(selected === p.id ? null : p.id));
+  listEl.appendChild(b);
+});
+function renderDetail() {
+  const p = PARTS.find(x => x.id === selected);
+  if (!p) {
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian mesin di model. Geser "Urai" untuk membuka pintu panel dan memisahkan belt dari rangka.</p>`;
+    return;
+  }
+  detailEl.innerHTML = `<h2>${p.nama}</h2>
+    <ul>${p.spek.map(s => `<li>${s}</li>`).join("")}</ul>
+    <p class="note" style="margin:0">${p.qty} × ${rp(p.harga)} · ${p.toko}</p>
+    <a href="${p.url}" target="_blank" rel="noopener">Buka di Tokopedia</a>`;
+}
+renderDetail();
+
+const tabs = { k: document.getElementById("tab-k"), s: document.getElementById("tab-s") };
+const panes = { k: document.getElementById("pane-k"), s: document.getElementById("pane-s") };
+let mode = "k";
+function select(id) {
+  selected = id;
+  listEl.querySelectorAll(".item").forEach(b => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  renderDetail(); if (threeOK) paint();
+}
+if (!threeOK) { tabs.s.disabled = true; return; }
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 60);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 0.4; controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a949c, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(2.0, 4.0, 2.4); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -2.6, right: 2.6, top: 2.6, bottom: -2.6, near: 0.5, far: 10 });
+scene.add(sun);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(6, 5), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+function applyTheme() { scene.background = new THREE.Color(css("--scene")); floorMat.color.set(css("--floor")); }
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// ---------- model (meter; x = arah aliran kardus, y = atas, z = ke sisi infeed) ----------
+const meshes = [];
+const M = (color, metal = 0.1, rough = 0.6) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough });
+function add(part, geo, mat, pos, ex = [0, 0, 0], parent = scene, rot = [0, 0, 0]) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos); m.rotation.set(...rot);
+  m.castShadow = m.receiveShadow = true;
+  m.userData = { part, base: new THREE.Vector3(...pos), ex: new THREE.Vector3(...ex) };
+  parent.add(m); meshes.push(m); return m;
+}
+const BOX = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+const CYX = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateZ(Math.PI / 2);
+const CYZ = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateX(Math.PI / 2);
+const CYY = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s);
+const SSC = 0xcfd5da, BELT = 0xf2f2ec;
+const SS = () => M(SSC, 0.3, 0.42);
+const R = 0.0381, BT = 0.003;              // jari-jari pulley, tebal belt
+const PY = 0.75, ZI = 0.45, YI = 1.05;     // tinggi belt packing, sumbu infeed (z), tinggi belt infeed
+const BZ = 0.11;                           // sumbu kardus (menempel pemandu di z = 0,27)
+const HOLLOW = SS(), PLAT = SS();
+const hol = (pos, size, ex = [0, 0, 0]) => add("hollow", BOX(...size), HOLLOW, pos, ex);
+const leds = [];                           // lampu indikator yang menyala mengikuti I/O
+function led(part, pos, color, on, r = 0.006, ex = [0, 0, 0]) {
+  const m = add(part, new THREE.SphereGeometry(r, 12, 8), M(color, 0, 0.4), pos, ex);
+  m.userData.dyn = false; leds.push({ m, color: new THREE.Color(color), on }); return m;
+}
+
+// konveyor (umum): pulley, as, bearing, belt, garis belt
+function conveyor(o) {
+  const yc = o.y - BT - R, L = o.x1 - o.x0, W = o.w, cx = (o.x0 + o.x1) / 2;
+  for (const [x, head] of [[o.x0, false], [o.x1, true]]) {
+    const sx = head ? 1 : -1;
+    add("pipa", CYZ(R - 0.001, W + 0.02), SS(), [x, yc, o.z], [sx * 0.15, 0, 0]);
+    add("as", CYZ(0.01, o.shaft), M(0xd5d9dc, 0.7, 0.3), [x, yc, o.z], [sx * 0.15, 0, 0]);
+    for (const s of [-1, 1]) {
+      const z = o.z + s * (W / 2 + 0.06);
+      if (head) {
+        add("ucp", BOX(0.127, 0.014, 0.038), M(0x37506b, 0.3, 0.5), [x, yc - 0.026, z], [sx * 0.15, -0.05, s * 0.06]);
+        add("ucp", CYZ(0.03, 0.034), M(0x37506b, 0.3, 0.5), [x, yc, z], [sx * 0.15, -0.05, s * 0.06]);
+      } else {
+        add("uct", BOX(0.05, 0.09, 0.03), M(0x37506b, 0.3, 0.5), [x, yc, z], [sx * 0.15, 0, s * 0.06]);
+        add("uct", CYZ(0.028, 0.032), M(0x51708f, 0.3, 0.5), [x, yc, z], [sx * 0.15, 0, s * 0.06]);
+      }
+    }
+  }
+  const bm = M(BELT, 0, 0.75);
+  add(o.belt, BOX(L, BT, W), bm, [cx, o.y - BT / 2, o.z], [0, 0.15, 0]);
+  add(o.belt, BOX(L, BT, W), bm, [cx, yc - R - BT / 2, o.z], [0, 0.15, 0]);
+  for (const x of [o.x0, o.x1]) add(o.belt, CYZ(R + BT, W, 28), bm, [x, yc, o.z], [0, 0.15, 0]);
+  const stripes = [];
+  for (let i = 0; i < Math.floor(L / o.gap); i++) {
+    const m = add(o.belt, BOX(0.012, 0.0006, W - 0.004), M(0xb7bab3, 0, 0.8), [o.x0 + i * o.gap, o.y + 0.0003, o.z], [0, 0.15, 0]);
+    stripes.push({ m, i });
+  }
+  return { ...o, yc, L, stripes };
+}
+
+// --- konveyor packing: pulley x = -1..+1 ---
+const PK = conveyor({ x0: -1.0, x1: 1.0, y: PY, z: 0, w: 0.6, shaft: 0.8, belt: "beltpk", gap: 0.25 });
+// rangka
+for (const s of [-1, 1]) hol([0, PY - 0.03, s * 0.33], [2.04, 0.04, 0.04], [0, 0, s * 0.1]);
+for (const x of [-0.85, 0.85]) for (const s of [-1, 1]) hol([x, (PY - 0.05) / 2, s * 0.33], [0.04, PY - 0.05, 0.04], [0, -0.05, s * 0.1]);
+for (const x of [-0.85, 0.85]) { hol([x, 0.15, 0], [0.04, 0.04, 0.62], [0, -0.05, 0]); hol([x, PY - 0.07, 0], [0.04, 0.04, 0.62], [0, -0.05, 0]); }
+for (const x of [-0.45, 0, 0.45]) hol([x, PY - 0.07, 0], [0.04, 0.04, 0.62], [0, -0.05, 0]);
+hol([0, 0.15, -0.33], [1.66, 0.04, 0.04], [0, -0.05, -0.1]); hol([0, 0.15, 0.33], [1.66, 0.04, 0.04], [0, -0.05, 0.1]);
+// alas luncur dengan lubang pelat timbang di tengah
+add("plat", BOX(0.79, 0.0015, 0.62), PLAT, [-0.605, PY - BT - 0.001, 0], [0, 0.05, 0]);
+add("plat", BOX(0.79, 0.0015, 0.62), PLAT, [0.605, PY - BT - 0.001, 0], [0, 0.05, 0]);
+add("plat", BOX(0.42, 0.0015, 0.42), PLAT, [0, PY - BT - 0.001, 0.05], [0, 0.1, 0]);
+add("loadcell", BOX(0.15, 0.04, 0.04), M(0x9aa4ab, 0.6, 0.35), [0, PY - 0.03, 0.05], [0, -0.12, 0]);
+add("loadcell", BOX(0.04, 0.012, 0.03), M(0x2a5bb5, 0.1, 0.5), [0.06, PY - 0.03, 0.073], [0, -0.12, 0]);
+// pemandu sisi kardus (sisi +z) dan proksimitas di stasiun isi
+add("plat", BOX(2.0, 0.08, 0.0015), PLAT, [0, PY + 0.045, 0.272], [0, 0.08, 0.05]);
+for (const x of [-0.75, -0.3, 0.3, 0.75]) add("plat", BOX(0.03, 0.12, 0.07), PLAT, [x, PY + 0.005, 0.31], [0, 0.08, 0.05]);
+add("prox", CYZ(0.009, 0.07), M(0x2e3236, 0.3, 0.5), [0, PY + 0.05, 0.3], [0, 0.1, 0.12]);
+add("braket", BOX(0.04, 0.05, 0.003), M(0x9aa0a6, 0.6, 0.4), [0, PY + 0.05, 0.315], [0, 0.1, 0.1]);
+led("prox", [0, PY + 0.05, 0.337], 0xff8a00, () => IN.px1, 0.006, [0, 0.1, 0.12]);
+// PE2 di sisi -z, x = +0,5
+add("pe", CYZ(0.009, 0.07), M(0x2e3236, 0.3, 0.5), [0.5, PY + 0.06, -0.37], [0, 0.1, -0.12]);
+add("braket", BOX(0.04, 0.09, 0.003), M(0x9aa0a6, 0.6, 0.4), [0.5, PY + 0.03, -0.39], [0, 0.1, -0.1]);
+led("pe", [0.5, PY + 0.075, -0.40], 0xff8a00, () => IN.pe2, 0.006, [0, 0.1, -0.12]);
+// motor packing di kepala, sisi -z
+add("kopmotor", CYZ(0.022, 0.05), M(0xb0b6bb, 0.7, 0.3), [1.0, PK.yc, -0.43], [0.15, 0, -0.08]);
+add("motor", BOX(0.09, 0.09, 0.065), M(0x3d4247, 0.3, 0.5), [1.0, PK.yc, -0.49], [0.15, 0, -0.18]);
+add("motor", CYZ(0.044, 0.13), M(0x50565c, 0.4, 0.45), [1.0, PK.yc, -0.6], [0.15, 0, -0.18]);
+add("plat", BOX(0.16, 0.006, 0.22), PLAT, [0.97, PK.yc - 0.048, -0.53], [0.15, 0, -0.15]);
+hol([0.92, (PK.yc - 0.05) / 2, -0.53], [0.04, PK.yc - 0.05, 0.04], [0.15, -0.05, -0.15]);
+// enkoder di ekor, sisi -z
+add("kopenk", CYZ(0.01, 0.026), M(0xb0b6bb, 0.7, 0.3), [-1.0, PK.yc, -0.415], [-0.15, 0, -0.06]);
+add("enkoder", CYZ(0.02, 0.04), M(0x2b2f34, 0.3, 0.45), [-1.0, PK.yc, -0.452], [-0.15, 0, -0.14]);
+add("plat", BOX(0.07, 0.07, 0.003), PLAT, [-1.0, PK.yc, -0.43], [-0.15, 0, -0.1]);
+led("enkoder", [-1.0, PK.yc + 0.024, -0.462], 0x2fbf71, () => IN.encA, 0.004, [-0.15, 0, -0.14]);
+
+// --- konveyor infeed: pulley x = -1,35..+0,15, sumbu z = 0,45 ---
+const IF = conveyor({ x0: -1.35, x1: 0.15, y: YI, z: ZI, w: 0.1, shaft: 0.3, belt: "beltin", gap: 0.2 });
+for (const s of [-1, 1]) hol([-0.6, YI - 0.05, ZI + s * 0.07], [1.54, 0.04, 0.04], [0, 0, s * 0.06]);
+for (const x of [-1.22, 0.11]) for (const s of [-1, 1]) hol([x, (YI - 0.05) / 2, ZI + s * 0.07], [0.04, YI - 0.05, 0.04], [0, -0.05, s * 0.06]);
+for (const x of [-1.22, 0.11]) hol([x, 0.2, ZI], [0.04, 0.04, 0.1], [0, -0.05, 0]);
+add("plat", BOX(1.5, 0.0015, 0.12), PLAT, [-0.6, YI - BT - 0.001, ZI], [0, 0.04, 0]);
+// pemandu samping: sisi -z terbuka di x = -0,06..0,06 (jalan keluar produk), sisi +z terbuka untuk pelat pendorong
+for (const s of [-1, 1]) {
+  add("plat", BOX(1.27, 0.05, 0.0015), PLAT, [-0.705, YI + 0.025, ZI + s * 0.056], [0, 0.06, s * 0.05]);
+  add("plat", BOX(0.08, 0.05, 0.0015), PLAT, [0.11, YI + 0.025, ZI + s * 0.056], [0, 0.06, s * 0.05]);
+}
+add("plat", BOX(0.004, 0.05, 0.112), PLAT, [0.045, YI + 0.025, ZI], [0.04, 0.06, 0]); // palang ujung
+// talang miring dari tepi infeed ke mulut kardus
+const chA = Math.atan2(YI - 1.005, 0.395 - 0.23);
+add("plat", BOX(0.12, 0.0015, Math.hypot(0.165, YI - 1.005)), PLAT, [0, (YI + 1.005) / 2, 0.3125], [0, 0.06, -0.04], scene, [-chA, 0, 0]);
+// PE1 di belakang palang ujung, melihat ke -x
+add("pe", CYX(0.009, 0.06), M(0x2e3236, 0.3, 0.5), [0.085, YI + 0.03, ZI], [0.12, 0.05, 0]);
+add("braket", BOX(0.003, 0.05, 0.04), M(0x9aa0a6, 0.6, 0.4), [0.07, YI + 0.03, ZI], [0.1, 0.05, 0]);
+led("pe", [0.117, YI + 0.042, ZI], 0xff8a00, () => IN.pe1, 0.006, [0.12, 0.05, 0]);
+// motor infeed di kepala, sisi +z
+add("kopmotor", CYZ(0.022, 0.05), M(0xb0b6bb, 0.7, 0.3), [0.15, IF.yc, ZI + 0.18], [0.1, 0, 0.08]);
+add("motor", BOX(0.09, 0.09, 0.065), M(0x3d4247, 0.3, 0.5), [0.15, IF.yc, ZI + 0.24], [0.1, 0, 0.18]);
+add("motor", CYZ(0.044, 0.13), M(0x50565c, 0.4, 0.45), [0.15, IF.yc, ZI + 0.35], [0.1, 0, 0.18]);
+add("plat", BOX(0.12, 0.006, 0.2), PLAT, [0.15, IF.yc - 0.048, ZI + 0.27], [0.1, 0, 0.15]);
+hol([0.15, (IF.yc - 0.05) / 2, ZI + 0.27], [0.04, IF.yc - 0.05, 0.04], [0.1, -0.05, 0.15]);
+// silinder pendorong di x = 0, sisi +z, mendorong ke -z
+const CY = YI + 0.032, CZ0 = ZI + 0.06; // pelat pendorong mundur: muka di z = 0,51 (tepi belt +z = 0,50)
+hol([0, (YI + 0.005) / 2, ZI + 0.35], [0.04, YI + 0.005, 0.04], [0, -0.05, 0.2]);
+add("plat", BOX(0.08, 0.006, 0.36), PLAT, [0, YI + 0.006, ZI + 0.24], [0, 0.05, 0.2]);
+add("silinder", BOX(0.045, 0.045, 0.24), M(0xc8ccd0, 0.6, 0.3), [0, CY + 0.012, ZI + 0.3], [0, 0.1, 0.2]);
+for (const z of [ZI + 0.175, ZI + 0.425]) add("silinder", BOX(0.047, 0.047, 0.012), M(0x33373b, 0.3, 0.5), [0, CY + 0.012, z], [0, 0.1, 0.2]);
+for (const z of [ZI + 0.18, ZI + 0.42]) add("lb32", BOX(0.06, 0.03, 0.006), M(0x8d949a, 0.6, 0.4), [0, YI + 0.023, z], [0, 0.05, 0.2]);
+const reedB0 = add("reed", BOX(0.008, 0.006, 0.025), M(0x1c1f22, 0.2, 0.5), [0.024, CY + 0.02, ZI + 0.4], [0.06, 0.1, 0.2]);
+const reedB1 = add("reed", BOX(0.008, 0.006, 0.025), M(0x1c1f22, 0.2, 0.5), [0.024, CY + 0.02, ZI + 0.2], [0.06, 0.1, 0.2]);
+led("reed", [0.029, CY + 0.02, ZI + 0.39], 0xe23c3c, () => IN.b0, 0.004, [0.06, 0.1, 0.2]);
+led("reed", [0.029, CY + 0.02, ZI + 0.21], 0xe23c3c, () => IN.b1, 0.004, [0.06, 0.1, 0.2]);
+const rod = new THREE.Group(); scene.add(rod);
+add("silinder", CYZ(0.006, 0.33), M(0xe1e4e6, 0.8, 0.2), [0, CY + 0.012, CZ0 + 0.165], [0, 0, 0], rod);
+add("fj", CYZ(0.011, 0.03), M(0xb0b6bb, 0.7, 0.3), [0, CY + 0.012, CZ0 + 0.025], [0, 0, 0], rod);
+add("plat", BOX(0.09, 0.05, 0.006), PLAT, [0, CY, CZ0 + 0.003], [0, 0, 0], rod);
+// katup dan FRL di tiang silinder
+add("katup", BOX(0.022, 0.11, 0.03), M(0x2c3e66, 0.2, 0.5), [0.035, 0.85, ZI + 0.35], [0.12, 0, 0.1]);
+add("katup", BOX(0.024, 0.03, 0.032), M(0x111417, 0.2, 0.5), [0.035, 0.92, ZI + 0.35], [0.12, 0, 0.1]);
+led("katup", [0.048, 0.925, ZI + 0.35], 0xe23c3c, () => OUT.y && !sim.estop, 0.004, [0.12, 0, 0.1]);
+add("frl", BOX(0.05, 0.05, 0.05), M(0x3a3f45, 0.3, 0.5), [0.05, 0.62, ZI + 0.35], [0.12, 0, 0.1]);
+add("frl", CYY(0.02, 0.09), M(0xbfd3e0, 0.1, 0.2), [0.05, 0.55, ZI + 0.35], [0.12, 0, 0.1]);
+add("frl", CYX(0.018, 0.01), M(0xeeeeee, 0.2, 0.4), [0.08, 0.65, ZI + 0.35], [0.12, 0, 0.1]);
+
+// --- panel kontrol di x = 1,55 ---
+const PX = 1.55, PYc = 1.15;
+for (const s of [-1, 1]) hol([PX - 0.12, (PYc - 0.25) / 2, s * 0.14], [0.04, PYc - 0.25, 0.04], [0.2, -0.05, 0]);
+const BOXC = M(0xd9dcd6, 0.3, 0.55);
+add("box", BOX(0.003, 0.5, 0.4), BOXC, [PX - 0.1, PYc, 0], [0.2, 0, 0]);
+for (const s of [-1, 1]) add("box", BOX(0.2, 0.003, 0.4), BOXC, [PX, PYc + s * 0.25, 0], [0.2, s * 0.05, 0]);
+for (const s of [-1, 1]) add("box", BOX(0.2, 0.5, 0.003), BOXC, [PX, PYc, s * 0.2], [0.2, 0, s * 0.05]);
+const DX = PX + 0.1, DE = [0.75, 0, 0]; // pintu, urai ke depan
+add("box", BOX(0.004, 0.5, 0.4), BOXC, [DX, PYc, 0], DE);
+for (const [z, c, on] of [[-0.09, 0x2fbf71, () => OUT.g], [0, 0xf2c230, () => OUT.yel], [0.09, 0xe23c3c, () => OUT.r]]) {
+  add("lampu", CYX(0.014, 0.012), M(0x30343a, 0.4, 0.4), [DX + 0.006, PYc + 0.17, z], DE);
+  led("lampu", [DX + 0.014, PYc + 0.17, z], c, on, 0.011, DE);
+}
+for (const [z, c] of [[-0.135, 0x2fbf71], [-0.045, 0xd93a3a], [0.045, 0x3b6fd8], [0.135, 0xf2c230]]) {
+  add("tombol", CYX(0.016, 0.01), M(0x30343a, 0.4, 0.4), [DX + 0.006, PYc + 0.06, z], DE);
+  add("tombol", CYX(0.012, 0.012), M(c, 0.1, 0.5), [DX + 0.014, PYc + 0.06, z], DE);
+}
+add("selektor", CYX(0.016, 0.01), M(0x30343a, 0.4, 0.4), [DX + 0.006, PYc - 0.06, -0.09], DE);
+const knob = add("selektor", BOX(0.012, 0.03, 0.008), M(0x16181b, 0.2, 0.5), [DX + 0.015, PYc - 0.06, -0.09], DE);
+add("estop", CYX(0.026, 0.008), M(0xf2c230, 0.1, 0.5), [DX + 0.006, PYc - 0.08, 0.08], DE);
+const mush = add("estop", CYX(0.02, 0.02), M(0xd32f2f, 0.1, 0.45), [DX + 0.02, PYc - 0.08, 0.08], DE);
+// isi panel
+const IE = [0.35, 0, 0];
+for (const y of [PYc + 0.12, PYc - 0.06]) add("rel", BOX(0.008, 0.035, 0.36), M(0xc9ced2, 0.8, 0.3), [PX - 0.094, y, 0], IE);
+for (const y of [PYc + 0.215, PYc + 0.03, PYc - 0.19]) add("duct", BOX(0.025, 0.025, 0.36), M(0x8f969c, 0.1, 0.7), [PX - 0.085, y, 0], IE);
+add("mcb", BOX(0.07, 0.085, 0.036), M(0xeeeeec, 0.1, 0.6), [PX - 0.06, PYc + 0.12, -0.15], IE);
+add("psu", BOX(0.11, 0.125, 0.063), M(0xb9bec2, 0.6, 0.35), [PX - 0.035, PYc + 0.12, -0.085], IE);
+add("plc", BOX(0.075, 0.1, 0.11), M(0x2a3a3e, 0.2, 0.5), [PX - 0.05, PYc + 0.12, 0.03], IE);
+add("plc", BOX(0.002, 0.05, 0.09), M(0x56c3b0, 0.1, 0.5), [PX - 0.012, PYc + 0.125, 0.03], IE);
+add("transmitter", BOX(0.05, 0.07, 0.04), M(0x1f5fbf, 0.1, 0.55), [PX - 0.065, PYc + 0.12, 0.13], IE);
+for (const z of [-0.155, -0.11]) add("relay", BOX(0.05, 0.06, 0.04), M(0xd8e4ea, 0.1, 0.3), [PX - 0.065, PYc - 0.06, z], IE);
+for (const z of [-0.06, -0.01]) add("motor", BOX(0.05, 0.07, 0.045), M(0x23272b, 0.2, 0.5), [PX - 0.065, PYc - 0.06, z], IE);
+for (let i = 0; i < 15; i++) add("terminal", BOX(0.04, 0.045, 0.0055), M(i % 5 === 4 ? 0x2a5bb5 : 0x8d949a, 0.1, 0.6), [PX - 0.07, PYc - 0.06, 0.04 + i * 0.0062], IE);
+// kompresor di lantai
+add("kompresor", CYX(0.15, 0.55, 28), M(0xc0392b, 0.3, 0.45), [-0.4, 0.17, -0.95], [0, 0, -0.3]);
+add("kompresor", BOX(0.32, 0.16, 0.2), M(0x2b2f34, 0.3, 0.5), [-0.4, 0.39, -0.95], [0, 0.1, -0.3]);
+add("kompresor", CYY(0.035, 0.012), M(0xeeeeee, 0.2, 0.4), [-0.2, 0.33, -0.85], [0, 0.1, -0.3], scene, [Math.PI / 2, 0, 0]);
+for (const x of [-0.6, -0.2]) add("kompresor", BOX(0.04, 0.05, 0.26), M(0x2b2f34, 0.3, 0.5), [x, 0.025, -0.95], [0, 0, -0.3]);
+
+// ---------- urai & pilih ----------
+let explode = 0;
+function applyExplode() { for (const m of meshes) if (!m.userData.dyn) m.position.copy(m.userData.base).addScaledVector(m.userData.ex, explode); }
+function paint() {
+  const acc = new THREE.Color(css("--accent"));
+  for (const m of meshes) {
+    const on = selected === m.userData.part, dim = selected && !on;
+    m.material.transparent = !!dim; m.material.opacity = dim ? 0.14 : 1; m.material.depthWrite = !dim;
+    m.material.emissive.copy(on ? acc : new THREE.Color(0)); m.material.emissiveIntensity = on ? 0.45 : 0;
+  }
+}
+document.getElementById("explode").addEventListener("input", e => { explode = +e.target.value; applyExplode(); });
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5 || mode !== "k") return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes, false)[0];
+  select(hit ? hit.object.userData.part : null);
+  if (hit) listEl.querySelector(`[data-id="${hit.object.userData.part}"]`)?.scrollIntoView({ block: "nearest" });
+});
+
+// ---------- kamera ----------
+const VIEWS = { iso: [[3.3, 2.3, 2.6], [0.15, 0.7, 0]], top: [[0.1, 4.6, 0.001], [0.1, 0.7, 0.1]], side: [[0.1, 1.3, 3.9], [0.1, 0.75, 0]],
+  fill: [[0.45, 2.55, -1.15], [0, 0.85, 0.2]] };
+function setView(v) { const [p, t] = VIEWS[v]; camera.position.set(...p); controls.target.set(...t); controls.update(); }
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- simulasi: fisik ----------
+const V_PK = 2000 / 50 / 60 * 2 * Math.PI * R, V_IN = 2000 / 36 / 60 * 2 * Math.PI * R; // 0,160 dan 0,222 m/s
+const CPM = 4000 / (2 * Math.PI * R);  // cacah HSC per meter belt (x4)
+const PITCH = 0.5, PC = Math.round(PITCH * CPM), TAU = 0.04, STROKE = 0.2, ROD_V = 0.4, G = 9.81;
+const PSZ = [0.08, 0.06, 0.08];
+const prodGeo = BOX(...PSZ);
+const sim = { t: 0, vIn: 0, vPk: 0, posPk: 0, cnt: 0, s: 0, prods: [], boxes: [], feed: 0, estop: false, auto: true,
+  held: { start: false, stop: false, reset: false, push: false }, op: true, target: 10, rate: 20, comp: 0.006, pushed: 0, take: 0 };
+const IN = {}, OUT = { in: false, pk: false, y: false, g: false, yel: false, r: false };
+const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 0.8;
+
+function newBox(x) {
+  const g = new THREE.Group(); g.position.set(x, PY, BZ); scene.add(g);
+  const mat = () => M(0xb8865a, 0, 0.9);
+  const parts = [[BOX(0.4, 0.004, 0.3), [0, 0.002, 0]], [BOX(0.4, 0.25, 0.004), [0, 0.125, -0.148]], [BOX(0.4, 0.25, 0.004), [0, 0.125, 0.148]],
+    [BOX(0.004, 0.25, 0.3), [-0.198, 0.125, 0]], [BOX(0.004, 0.25, 0.3), [0.198, 0.125, 0]]];
+  for (const [geo, p] of parts) { const m = add("kardus", geo, mat(), p, [0, 0, 0], g); m.userData.dyn = true; }
+  const b = { x, g, items: [], slots: 0, full: false };
+  sim.boxes.push(b); if (selected) paint(); return b;
+}
+function dropBox(b) {
+  scene.remove(b.g); b.items.forEach(p => scene.remove(p.m));
+  for (let i = meshes.length - 1; i >= 0; i--) if (meshes[i].parent === b.g) meshes.splice(i, 1);
+  sim.boxes.splice(sim.boxes.indexOf(b), 1);
+}
+function newProd() {
+  const m = new THREE.Mesh(prodGeo, M(0xd9822b, 0.05, 0.6)); m.castShadow = true; scene.add(m);
+  const p = { m, x: -1.3, z: ZI, m_: 1.0 + gauss() * 0.03, st: "in" };
+  sim.prods.push(p); return p;
+}
+const slotPos = (b, k) => new THREE.Vector3(b.x - 0.15 + (k % 4) * 0.1, PY + 0.004 + PSZ[1] / 2 + Math.floor(k / 12) * 0.062, BZ - 0.1 + (Math.floor(k / 4) % 3) * 0.1);
+const boxMass = b => 0.35 + b.items.reduce((a, p) => a + p.m_, 0);
+
+function physics(dt) {
+  sim.t += dt;
+  const pw = !sim.estop, inOn = pw && OUT.in, pkOn = pw && OUT.pk, yOn = pw && OUT.y;
+  sim.vIn += ((inOn ? V_IN : 0) - sim.vIn) * Math.min(1, dt / (inOn ? 0.12 : TAU));
+  sim.vPk += ((pkOn ? V_PK : 0) - sim.vPk) * Math.min(1, dt / (pkOn ? 0.12 : TAU));
+  if (sim.vIn < 1e-4) sim.vIn = 0; if (sim.vPk < 1e-4) sim.vPk = 0;
+  const dPk = sim.vPk * dt;
+  sim.posPk += dPk; sim.cnt = Math.round(sim.posPk * CPM);
+  sim.s = Math.min(STROKE, Math.max(0, sim.s + (yOn ? 1 : -1) * ROD_V * dt));
+  for (const b of [...sim.boxes]) { b.x += dPk; if (b.x > 1.05) dropBox(b); }
+  // produk di infeed: antre di belakang palang ujung (pusat produk paling depan x = 0)
+  const face = ZI + 0.06 - sim.s;
+  let lim = 0;
+  const gate = sim.s > 0.005 ? -0.09 : 0; // pelat pendorong yang sedang maju menghalangi produk berikutnya
+  for (const p of sim.prods.filter(p => p.st === "in").sort((a, b) => b.x - a.x)) {
+    p.x = p.x > -0.045 ? Math.min(p.x + sim.vIn * dt, 0) : Math.min(p.x + sim.vIn * dt, lim, gate); lim = p.x - 0.086;
+    if (p.x > -0.045 && p.z + PSZ[2] / 2 > face) p.z = face - PSZ[2] / 2;
+    if (p.z < ZI - 0.05) { // lewat tepi belt: meluncur ke kardus di bawah talang
+      const b = sim.boxes.find(b => Math.abs(b.x) < 0.15 && b.slots < 24);
+      Object.assign(p, { st: "fall", u: 0, from: new THREE.Vector3(p.x, YI + PSZ[1] / 2, p.z), box: b, k: b ? b.slots++ : 0 });
+      sim.pushed++;
+    }
+  }
+  for (const p of sim.prods.filter(p => p.st === "fall")) {
+    p.u = Math.min(1, p.u + dt / 0.4);
+    const to = p.box ? slotPos(p.box, p.k) : new THREE.Vector3(0, PY + PSZ[1] / 2, BZ);
+    const v = p.from.clone().lerp(to, p.u); v.y += 0.06 * Math.sin(Math.PI * p.u);
+    p.m.position.copy(v); p.m.rotation.x = -0.5 * Math.sin(Math.PI * p.u);
+    if (p.u >= 1) { if (p.box) { p.st = "box"; p.box.items.push(p); } else { p.st = "belt"; p.x = to.x; p.z = to.z; } p.m.rotation.x = 0; }
+  }
+  for (const p of sim.prods.filter(p => p.st === "belt")) { p.x += dPk; if (p.x > 1.0) { p.st = "gone"; scene.remove(p.m); } }
+  sim.prods = sim.prods.filter(p => p.st !== "gone" && !(p.st === "box" && !sim.boxes.includes(p.box)));
+  // pasokan produk
+  sim.feed = Math.min(1, sim.feed + dt * sim.rate / 60);
+  if (sim.feed >= 1 && !sim.prods.some(p => p.st === "in" && p.x < -1.2) && sim.prods.filter(p => p.st === "in").length < 14) { sim.feed = 0; newProd(); }
+  // operator: taruh kardus kosong di tanda x = -0,5, ambil kardus penuh di x = +0,5
+  if (sim.op && sim.vPk === 0 && !sim.boxes.some(b => b.x < -0.25)) newBox(-PITCH + gauss() * 0.004);
+  const pick = sim.boxes.find(b => Math.abs(b.x - PITCH) < 0.2 && b.full);
+  if (sim.op && pick && sim.vPk === 0) { sim.take += dt; if (sim.take > 2.5) { dropBox(pick); sim.take = 0; } } else sim.take = 0;
+}
+
+function loadcell() {
+  let w = 0;
+  for (const b of sim.boxes) { const ov = Math.max(0, Math.min(b.x + 0.2, 0.21) - Math.max(b.x - 0.2, -0.21)) / 0.4; w += ov * boxMass(b); }
+  for (const p of sim.prods) if (p.st === "belt" && Math.abs(p.x) < 0.21) w += p.m_;
+  w += (Math.random() - 0.5) * 0.02 + (sim.vPk > 0.01 ? 0.25 * Math.sin(sim.t * 9) : 0); // derau + tarikan belt saat jalan
+  return Math.max(0, w);
+}
+function readInputs() {
+  const ph = ((sim.cnt % 4) + 4) % 4, h = sim.held;
+  const w = loadcell(), raw = Math.round(Math.min(1, w / 50) * 1023) * 27;
+  Object.assign(IN, {
+    encA: ph === 1 || ph === 2, encB: ph >= 2,
+    pe1: sim.prods.some(p => p.st === "in" && p.x > -0.045),
+    px1: sim.boxes.some(b => Math.abs(b.x) < 0.2),
+    pe2: sim.boxes.some(b => Math.abs(b.x - PITCH) < 0.2),
+    b0: sim.s < 0.004, b1: sim.s > STROKE - 0.004,
+    start: h.start, stop: !h.stop, reset: h.reset, push: h.push, auto: sim.auto, esOK: !sim.estop, raw,
+  });
+}
+
+// ---------- simulasi: program PLC (dipindai tiap langkah) ----------
+const ST = { STOP: "Berhenti. Tekan Start.", INDEX: "Kotak maju satu pitch (enkoder)", ISI: "Mengisi kotak", MAJU: "Silinder mendorong produk",
+  MUNDUR: "Silinder kembali", TIMBANG: "Menimbang", AMBIL: "Menunggu kardus penuh diambil (PE2)", KOSONG: "Tidak ada kardus di stasiun isi. Taruh kardus lalu tekan Start.",
+  MANUAL: "Mode manual", FAULT: "Gangguan", ESTOP: "E-stop ditekan. Lepas lalu tekan Reset." };
+const plc = { st: "STOP", t: 0, run: false, tgt: 0, tare: 0, n: 0, empty: 0, fault: "", done: 0, lastW: null, lastErr: null, net: null, prev: {}, still: 0, lastCnt: 0, t0: null };
+const kg = raw => raw / 27648 * 50;
+function go(s) { plc.st = s; plc.t = 0; }
+function scan(dt) {
+  const I = IN, P = plc, rise = k => I[k] && !P.prev[k];
+  P.t += dt;
+  const q = { in: false, pk: false, y: false };
+  const startIndex = () => { if (I.pe2) go("AMBIL"); else { P.tgt += PC; go("INDEX"); } };
+  if (!I.esOK) { if (P.st !== "ESTOP") go("ESTOP"); P.run = false; }
+  else if (P.st === "ESTOP") { if (rise("reset")) go("STOP"); }
+  else if (P.st === "FAULT") { if (rise("reset")) go("STOP"); }
+  else if (!I.auto) { if (P.st !== "MANUAL") { go("MANUAL"); P.run = false; } q.pk = I.start; q.in = I.reset; q.y = I.push; P.tgt = sim.cnt; }
+  else {
+    if (P.st === "MANUAL") go("STOP");
+    if (!I.stop && P.st !== "STOP") { P.run = false; go("STOP"); }
+    const fault = m => { P.fault = m; P.run = false; go("FAULT"); };
+    switch (P.st) {
+      case "STOP":
+        if (rise("start") && I.stop) { P.run = true; P.empty = 0; P.t0 ??= sim.t;
+          if (P.tgt - sim.cnt > PC * 0.05) go("INDEX");      // pitch yang terpotong Stop/E-stop dilanjutkan
+          else if (I.px1) go("ISI");                           // isi kotak yang sudah ada, hitungan & tara dipertahankan
+          else { P.tgt = sim.cnt; startIndex(); } }
+        break;
+      case "INDEX":
+        q.pk = sim.cnt < P.tgt - sim.comp * CPM;
+        P.still = sim.cnt === P.lastCnt ? P.still + dt : 0;
+        if (!q.pk && P.still > 0.1) {
+          P.lastErr = (sim.cnt - P.tgt) / CPM * 1000;
+          if (I.px1) { P.empty = 0; P.n = 0; P.tared = false; go("ISI"); }
+          else if (++P.empty < 3) startIndex(); else go("KOSONG");
+        }
+        if (P.t > 6) fault("Belt packing tidak bergerak (enkoder diam)");
+        break;
+      case "AMBIL": if (!I.pe2) startIndex(); break;
+      case "KOSONG": if (rise("start")) { P.empty = 0; startIndex(); } break;
+      case "ISI":
+        if (!P.tared && P.t > 0.5) { P.tare = kg(I.raw); P.tared = true; P.net = 0; }
+        if (P.tared && I.pe1 && I.b0 && P.n < sim.target) go("MAJU");
+        break;
+      case "MAJU": q.y = true; if (I.b1) { P.n++; go("MUNDUR"); } else if (P.t > 2) fault("Silinder tidak sampai depan (B1)"); break;
+      case "MUNDUR": if (I.b0) go("TIMBANG"); else if (P.t > 2) fault("Silinder tidak kembali (B0)"); break;
+      case "TIMBANG":
+        if (P.t > 0.6) {
+          P.net = kg(I.raw) - P.tare;
+          if (P.n >= sim.target) {
+            P.lastW = { w: P.net, n: P.n }; P.done++;
+            const b = sim.boxes.find(b => Math.abs(b.x) < 0.2); if (b) b.full = true;
+            startIndex();
+          } else go("ISI");
+        }
+        break;
+    }
+    // infeed jalan selama siklus otomatis; berhenti bila produk sudah menunggu di palang dan kotak belum siap
+    q.in = P.run && !(I.pe1 && !["ISI", "MAJU", "MUNDUR", "TIMBANG"].includes(P.st));
+  }
+  P.lastCnt = sim.cnt;
+  const blink = Math.floor(sim.t * 2) % 2 === 0;
+  Object.assign(OUT, q, {
+    g: I.auto && P.run, yel: P.st === "MANUAL" || ((P.st === "AMBIL" || P.st === "KOSONG") && blink),
+    r: P.st === "FAULT" || (P.st === "ESTOP" && blink),
+  });
+  P.prev = { ...I };
+}
+
+// ---------- UI simulasi ----------
+const $ = id => document.getElementById(id);
+const DI = [["I0.0", "ENC_A", "Enkoder fase A (HSC1)", "encA"], ["I0.1", "ENC_B", "Enkoder fase B (HSC1)", "encB"], ["I0.2", "PE1", "Produk di palang ujung infeed", "pe1"],
+  ["I0.3", "PX1", "Kardus di stasiun isi", "px1"], ["I0.4", "PE2", "Kardus penuh di posisi ambil", "pe2"], ["I0.5", "B0", "Silinder di belakang", "b0"],
+  ["I0.6", "B1", "Silinder di depan", "b1"], ["I0.7", "S1", "Start (NO)", "start"], ["I1.0", "S2", "Stop (NC)", "stop"], ["I1.1", "S3", "Reset (NO)", "reset"],
+  ["I1.2", "S4", "Dorong manual (NO)", "push"], ["I1.3", "S5", "Selektor Auto", "auto"], ["I1.4", "ES", "Daya aktuator ada (setelah E-stop)", "esOK"], ["I1.5", "", "Cadangan", null]];
+const DO = [["Q0.0", "K1", "Relay motor infeed", "in", true], ["Q0.1", "K2", "Relay motor packing", "pk", true], ["Q0.2", "Y1", "Katup 5/2 pendorong", "y", true],
+  ["Q0.3", "", "Cadangan (grup 1L)", null], ["Q0.4", "", "Cadangan (grup 1L)", null], ["Q0.5", "H1", "Lampu hijau jalan", "g"], ["Q0.6", "H2", "Lampu kuning tunggu/manual", "yel"],
+  ["Q0.7", "H3", "Lampu merah gangguan", "r"], ["Q1.0", "", "Cadangan (grup 2L)", null], ["Q1.1", "", "Cadangan (grup 2L)", null]];
+const row = (tb, [a, t, d], id) => tb.insertAdjacentHTML("beforeend", `<tr><td class="a">${a}</td><td class="a">${t}</td><td>${d}</td><td class="v" id="${id}"></td></tr>`);
+DI.forEach((r, i) => row($("di"), r, "di" + i)); DO.forEach((r, i) => row($("do"), r, "do" + i));
+row($("ai"), ["%IW64", "WT1", "Load cell 0-10 V (0-50 kg)"], "ai0"); row($("ai"), ["%IW66", "", "Cadangan"], "ai1");
+const dot = (on, cut) => cut ? '<span class="dot cut" aria-label="tanpa daya"></span>' : `<span class="dot${on ? " on" : ""}" aria-label="${on ? "1" : "0"}"></span>`;
+
+function hold(btn, key) {
+  const on = v => { sim.held[key] = v; btn.classList.toggle("on", v); };
+  btn.addEventListener("pointerdown", e => { e.preventDefault(); btn.setPointerCapture(e.pointerId); on(true); });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => btn.addEventListener(ev, () => on(false)));
+  btn.addEventListener("keydown", e => { if ((e.key === " " || e.key === "Enter") && !e.repeat) { e.preventDefault(); on(true); } });
+  btn.addEventListener("keyup", e => { if (e.key === " " || e.key === "Enter") on(false); });
+  btn.addEventListener("blur", () => on(false));
+}
+document.querySelectorAll("[data-pb]").forEach(b => hold(b, b.dataset.pb));
+$("estop").addEventListener("click", e => { sim.estop = !sim.estop; e.currentTarget.setAttribute("aria-pressed", sim.estop); });
+function setAuto(a) {
+  sim.auto = a; $("m-auto").setAttribute("aria-pressed", a); $("m-man").setAttribute("aria-pressed", !a);
+  $("mhint").textContent = a ? "Auto: Start memulai siklus, Stop menghentikan, Reset menghapus gangguan."
+    : "Manual: tahan Start = jalankan belt packing, tahan Reset = jalankan infeed, tahan Dorong = silinder maju.";
+}
+$("m-auto").addEventListener("click", () => setAuto(true)); $("m-man").addEventListener("click", () => setAuto(false)); setAuto(true);
+const slider = (id, f, fmt) => { const el = $(id); const u = () => { f(+el.value); $(id + "-o").textContent = fmt(+el.value); }; el.addEventListener("input", u); u(); };
+slider("tgt", v => sim.target = v, v => String(v));
+slider("rate", v => sim.rate = v, v => `${v} /mnt`);
+slider("comp", v => sim.comp = v / 1000, v => `${v} mm`);
+$("op").addEventListener("change", e => sim.op = e.target.checked);
+$("put").addEventListener("click", () => { if (!sim.boxes.some(b => Math.abs(b.x + PITCH) < 0.3)) newBox(-PITCH); });
+$("take").addEventListener("click", () => { const b = sim.boxes.find(b => Math.abs(b.x - PITCH) < 0.2); if (b) dropBox(b); });
+
+function tele() {
+  const P = plc;
+  $("st").textContent = P.st === "FAULT" ? `Gangguan: ${P.fault}. Tekan Reset.` : ST[P.st];
+  $("st").classList.toggle("f", P.st === "FAULT" || P.st === "ESTOP");
+  $("t-vi").textContent = `${num(sim.vIn, 2)} m/s`; $("t-vp").textContent = `${num(sim.vPk, 2)} m/s`;
+  // arus: gesek belt di alas luncur (μ 0,33) + 15% rugi pulley, efisiensi gear 0,7 dan motor 0,8, arus tanpa beban 0,35 A
+  const amp = (v, m) => v > 0.005 ? 0.35 + 0.33 * m * G * 1.15 * v / 0.56 / 24 : 0;
+  const mPk = 2.9 + sim.boxes.reduce((a, b) => a + boxMass(b), 0), mIn = 0.2 + sim.prods.filter(p => p.st === "in").reduce((a, p) => a + p.m_, 0);
+  $("t-ii").textContent = `${num(amp(sim.vIn, mIn), 1)} A`; $("t-ip").textContent = `${num(amp(sim.vPk, mPk), 1)} A`;
+  $("t-hsc").textContent = `${sim.cnt.toLocaleString("id-ID")} (${num(sim.posPk * 1000, 0)} mm)`;
+  if (P.lastErr != null) { const e = P.lastErr, c = Math.abs(e) <= 10 ? "state-ok" : "state-hit"; $("t-err").innerHTML = `<span class="${c}">${e >= 0 ? "+" : ""}${num(e, 1)} mm</span>`; }
+  $("t-w").textContent = `${num(kg(IN.raw), 2)} kg`;
+  $("t-net").textContent = P.net == null ? "-" : `${num(P.net, 2)} kg`;
+  $("t-n").textContent = `${P.n} / ${sim.target}`;
+  $("t-done").textContent = P.done;
+  if (P.lastW) { const exp = P.lastW.n, ok = Math.abs(P.lastW.w - exp) <= 0.1 * exp;
+    $("t-last").innerHTML = `${num(P.lastW.w, 2)} kg untuk ${P.lastW.n} produk <span class="${ok ? "state-ok" : "state-hit"}">(${ok ? "dalam toleransi 10%" : "periksa"})</span>`; }
+  $("t-push").textContent = sim.pushed;
+  $("t-rate").textContent = P.t0 != null && sim.t - P.t0 > 60 ? `${num(P.done / (sim.t - P.t0) * 3600, 0)} kotak/jam` : "-";
+  DI.forEach((r, i) => $("di" + i).innerHTML = r[3] ? dot(IN[r[3]]) : "");
+  DO.forEach((r, i) => $("do" + i).innerHTML = r[4] && sim.estop ? dot(true, true) : r[3] ? dot(OUT[r[3]]) : "");
+  $("ai0").textContent = `${IN.raw} = ${num(kg(IN.raw), 2)} kg`; $("ai1").textContent = "0";
+}
+
+// tab
+function setMode(mo) {
+  mode = mo;
+  for (const key of ["k", "s"]) { tabs[key].setAttribute("aria-selected", key === mo); panes[key].hidden = key !== mo; panes[key].style.display = key === mo ? "flex" : ""; }
+  if (mo === "s") { explode = 0; $("explode").value = 0; applyExplode(); select(null); setView("fill"); }
+  $("hint").textContent = mo === "s" ? "Seret untuk memutar. Tombol panel ada di kanan, tombol Start/Reset/Dorong bisa ditahan." : "Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.";
+}
+tabs.k.addEventListener("click", () => setMode("k")); tabs.s.addEventListener("click", () => setMode("s"));
+[tabs.k, tabs.s].forEach(t => t.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = t === tabs.k ? tabs.s : tabs.k; n.focus(); n.click(); } }));
+
+// ---------- gambar ----------
+function draw() {
+  for (const cv of [PK, IF]) {
+    const off = cv === PK ? sim.posPk : IF.off;
+    for (const s of cv.stripes) { const x = cv.x0 + ((((s.i * cv.gap + off) % cv.L) + cv.L) % cv.L); s.m.userData.base.x = x; s.m.position.x = x + s.m.userData.ex.x * explode; }
+  }
+  rod.position.z = -sim.s;
+  for (const b of sim.boxes) b.g.position.x = b.x;
+  for (const p of sim.prods) {
+    if (p.st === "in" || p.st === "belt") p.m.position.set(p.x, (p.st === "in" ? YI : PY) + PSZ[1] / 2, p.z);
+    else if (p.st === "box") p.m.position.copy(slotPos(p.box, p.k));
+  }
+  knob.rotation.x = sim.auto ? 0.6 : -0.6;
+  mush.userData.base.x = DX + (sim.estop ? 0.012 : 0.02); mush.position.x = mush.userData.base.x + mush.userData.ex.x * explode;
+  for (const l of leds) if (selected !== l.m.userData.part) {
+    const on = l.on(); l.m.material.emissive.copy(on ? l.color : new THREE.Color(0)); l.m.material.emissiveIntensity = on ? 1.4 : 0;
+  }
+}
+
+// ---------- loop ----------
+function resize() {
+  const r = stage.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+newBox(0); newBox(-PITCH);
+for (let i = 0; i < 5; i++) { const p = newProd(); p.x = -0.09 * i; }
+readInputs(); setView("iso"); select(null);
+let last = performance.now(), tAcc = 0, inAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  IF.off = (IF.off || 0) + sim.vIn * dt;
+  for (let k = 0; k < 4; k++) { readInputs(); scan(dt / 4); physics(dt / 4); }
+  draw(); controls.update(); renderer.render(scene, camera);
+  if ((tAcc += dt) > 0.15) { tAcc = 0; if (mode === "s") tele(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
+</html>
