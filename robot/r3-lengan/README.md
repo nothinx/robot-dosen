@@ -11,4 +11,5 @@ Spesifikasi asli (`spesifikasi/robotic_arm_specs.docx`):
 - Catu daya 220 VAC
 
 ## Keputusan
+- Pengendali sendi: STM32 Black Pill WeAct F411CEU6, sama dengan R1 (satu toolchain & suku cadang). IK/vision tetap di PC/Pi.
 _Belum ada; didiskusikan satu per satu. Temuan awal: lihat `KONTEKS.md` bagian Robot._
