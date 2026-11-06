@@ -1,0 +1,581 @@
+<title>R1 Robot Beroda</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* design · layar aplikasi (visualisasi teknik) · dial E1/R1/M1 · tanda tangan: model 3D + telemetri ·
+   font Plex Sans Condensed (judul), Plex Sans (isi), Plex Mono (angka) karena dunia lembar data & gambar teknik */
+/* Layout: kanvas 3D mengisi kiri, panel kerja 380px di kanan; di HP kanvas di atas, panel di bawah. */
+:root {
+  --bg: #eef1f2; --panel: #ffffff; --fg: #16202a; --muted: #55626e; --line: #d3d9de;
+  --accent: #b54708; --accent-fg: #ffffff; --accent-soft: #fbeee4;
+  --ok: #1e7a46; --warn: #b42318; --scene: #dde3e7; --floor: #c9d1d6;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+    --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+    --ok: #4cc38a; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+  --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+  --ok: #4cc38a; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+}
+html, body { height: 100%; overflow-x: clip; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 18px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 6px; }
+.total b { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+.seg button { min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 14px var(--f-body); cursor: pointer; }
+.seg button[aria-selected="true"] { background: var(--fg); color: var(--panel); }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+  color: var(--fg); font: 500 13px var(--f-body); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.views .btn { min-height: 36px; background: var(--panel); }
+label.row { display: flex; align-items: center; gap: 10px; }
+input[type=range] { flex: 1; accent-color: var(--accent); min-height: 32px; }
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; text-align: left;
+  min-height: 44px; padding: 8px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--fg); font: inherit; cursor: pointer; }
+.item:hover { background: var(--bg); }
+.item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .n { font-weight: 500; min-width: 0; }
+.item .p { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .q { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.item .off { color: var(--muted); }
+.detail { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.detail ul { margin: 0; padding-left: 18px; }
+.detail li + li { margin-top: 3px; }
+.detail a { color: var(--accent); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cell { background: var(--panel); padding: 8px 10px; min-width: 0; }
+.cell span { display: block; color: var(--muted); font-size: 12px; }
+.cell b { font-family: var(--f-mono); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.cell.wide { grid-column: 1 / -1; }
+.state-ok { color: var(--ok); } .state-hit { color: var(--warn); }
+.pad { display: grid; grid-template-columns: repeat(3, 56px); grid-template-rows: repeat(2, 56px); gap: 6px; justify-content: center; }
+.pad button { border: 1px solid var(--line); border-radius: 8px; background: var(--panel); color: var(--fg); font: 600 13px var(--f-body);
+  cursor: pointer; touch-action: none; user-select: none; }
+.pad button.on { background: var(--fg); color: var(--panel); }
+.pad .f { grid-column: 2; grid-row: 1; } .pad .l { grid-column: 1; grid-row: 2; } .pad .b { grid-column: 2; grid-row: 2; } .pad .r { grid-column: 3; grid-row: 2; }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+kbd { font-family: var(--f-mono); font-size: 12px; border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+.err { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--fg); }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .stage { height: 58vh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="views" role="group" aria-label="Sudut pandang">
+      <button class="btn" data-view="iso">Isometrik</button>
+      <button class="btn" data-view="top">Atas</button>
+      <button class="btn" data-view="side">Samping</button>
+      <button class="btn" data-view="front">Depan</button>
+    </div>
+    <p class="hint" id="hint">Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.</p>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <h1>R1 Robot Beroda</h1>
+      <p class="sub">Usulan spesifikasi untuk permintaan dosen, harga Tokopedia per 6 Nov 2026.</p>
+    </header>
+    <div class="total"><span>Perkiraan RAB, belum ongkir</span><b id="total">Rp0</b></div>
+
+    <div class="seg" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-k" aria-selected="true" aria-controls="pane-k">Komponen</button>
+      <button role="tab" id="tab-s" aria-selected="false" aria-controls="pane-s">Simulasi</button>
+    </div>
+
+    <section id="pane-k" role="tabpanel" aria-labelledby="tab-k" style="display:flex;flex-direction:column;gap:14px">
+      <label class="row" for="explode">Urai <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
+      <div class="detail" id="detail" aria-live="polite"></div>
+      <div class="list" id="list"></div>
+      <p class="note">Belum masuk RAB: PCB pembawa, spacer M3 60 mm, baut, kabel & konektor, braket sensor, ongkos potong pelat.
+        Dimensi bertanda estimasi diambil dari kelas komponennya, bukan lembar data resmi.</p>
+    </section>
+
+    <section id="pane-s" role="tabpanel" aria-labelledby="tab-s" hidden style="flex-direction:column;gap:14px">
+      <div class="pad" role="group" aria-label="Kemudi">
+        <button class="f" data-k="f" aria-label="Maju">Maju</button>
+        <button class="l" data-k="l" aria-label="Belok kiri">Kiri</button>
+        <button class="b" data-k="b" aria-label="Mundur">Mundur</button>
+        <button class="r" data-k="r" aria-label="Belok kanan">Kanan</button>
+      </div>
+      <p class="note" style="text-align:center">Keyboard: <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> atau panah, <kbd>Spasi</kbd> berhenti.</p>
+      <div class="tools">
+        <button class="btn" id="auto" aria-pressed="false">Mode otomatis: hindari rintangan</button>
+        <button class="btn" id="load" aria-pressed="false">Muatan 5 kg</button>
+        <button class="btn" id="reset">Kembali ke awal</button>
+      </div>
+      <div class="grid2" id="tele">
+        <div class="cell"><span>Kecepatan</span><b id="t-v">0,00 m/s</b></div>
+        <div class="cell"><span>Putar badan</span><b id="t-w">0 °/s</b></div>
+        <div class="cell"><span>Roda kiri</span><b id="t-rl">0 rpm</b></div>
+        <div class="cell"><span>Roda kanan</span><b id="t-rr">0 rpm</b></div>
+        <div class="cell"><span>Enkoder kiri</span><b id="t-el">0</b></div>
+        <div class="cell"><span>Enkoder kanan</span><b id="t-er">0</b></div>
+        <div class="cell"><span>Ultrasonik kiri</span><b id="t-ul">-</b></div>
+        <div class="cell"><span>Ultrasonik kanan</span><b id="t-ur">-</b></div>
+        <div class="cell wide"><span>Ultrasonik depan</span><b id="t-uc">-</b></div>
+        <div class="cell"><span>Bumper</span><b id="t-bp">bebas</b></div>
+        <div class="cell"><span>IR kiri / kanan</span><b id="t-ir">lantai / lantai</b></div>
+        <div class="cell"><span>Arus baterai</span><b id="t-i">0,0 A</b></div>
+        <div class="cell"><span>Tegangan</span><b id="t-u">15,2 V</b></div>
+        <div class="cell wide"><span>Estimasi waktu jalan (4 Ah terpakai)</span><b id="t-rt">-</b></div>
+      </div>
+      <p class="note" id="massnote"></p>
+      <p class="note">Model sederhana: kecepatan roda dibatasi ±150 rpm (motor 24 V di 14,8 V), percepatan dibatasi firmware,
+        arus = daya gerak ÷ efisiensi 55% + ±0,15 A logika. Angka untuk gambaran, bukan hasil uji.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const T = "https://www.tokopedia.com/";
+const PARTS = [
+  { id: "motor", nama: "Motor PG36 24 V 1:50,1 + enkoder", qty: 2, harga: 805000, toko: "MRI Electronics", url: T + "mri-electronics/pg36-24v-1-50-9k-7ppr-encoder-200rpm-1734614292074300638",
+    spek: ["Planetary Ø36 mm, motor 555, rasio 1:50,1", "Di 24 V: 200–235 rpm, torsi kerja 17–20 kgf·cm, stall ±40 kgf·cm", "Di 14,8 V (4S): ±150 rpm tanpa beban, stall ±25 kgf·cm", "Enkoder hall 7 PPR, ±1403 count per putaran roda (4 tepi)", "Poros 8 mm, panjang badan ±110 mm (estimasi)"] },
+  { id: "braket", nama: "Braket clamp PG36", qty: 2, harga: 73718, toko: "MRI Electronics", url: T + "mri-electronics/braket-dudukan-clamp-motor-dc-pg36-12v-24v-36v-bavel-gear-planetary-gearbox-encoder-1731812828550759646",
+    spek: ["Penjepit gearbox, dibaut ke pelat bawah", "Status toko: pre-order"] },
+  { id: "roda", nama: "Roda RC 85 mm ban karet", qty: 2, harga: 56988, toko: "Rajacell", url: T + "rajacell/roda-robot-smart-car-85mm-red-rc-whell-velg-ban-duri-track-offroad",
+    spek: ["Ø85 × 38 mm, ban off-road, velg ABS", "Dudukan velg hex 12 mm", "Poros roda 42,5 mm dari lantai"] },
+  { id: "kopling", nama: "Hex coupling kuningan 8 mm", qty: 2, harga: 0, toko: "indo-ware", url: T + "indo-ware/brass-hexagonal-coupling-hub-roda-ke-motor-dc-coupling-hole-2mm-3mm-4mm-5mm-6mm-7mm-8mm-shaft-haft-motor-flexible-coupling-tyre-wheel-brass-hex-coupler-5mm-f999e",
+    spek: ["Lubang 8 mm (poros PG36) ke hex 12 mm (velg RC)", "Harga varian 8 mm belum dicek"] },
+  { id: "driver", nama: "Driver Cytron MDD10A", qty: 1, harga: 575000, toko: "KHURS IOT", url: T + "khurs-iot/cytron-10amp-5v-30v-dc-motor-driver-2-channels-10a-mdd10a",
+    spek: ["2 kanal, 5–30 V", "10 A kontinu, 30 A puncak per kanal", "Masukan PWM + DIR, cocok untuk logika 3,3 V", "Kebutuhan nyata ±1–3 A per motor", "±84 × 62 mm (estimasi)"] },
+  { id: "mcu", nama: "STM32 Black Pill WeAct F411CEU6", qty: 1, harga: 147000, toko: "HwThinker", url: T + "hwthinker/weact-stm32f411ceu6-stm32-stm32f4-arm-cortex-m4-blackpill-flety-v3-1-f411-058a9",
+    spek: ["Cortex-M4 100 MHz + FPU, 512 KB flash, 128 KB RAM", "Rencana timer: TIM3 & TIM4 mode enkoder, TIM1 PWM motor, TIM2/TIM5 input capture ultrasonik", "53 × 21 mm, ditancap di PCB pembawa (hijau di model)", "Pengendali yang sama dipakai di R3"] },
+  { id: "stlink", nama: "Programmer ST-Link V2 mini", qty: 1, harga: 39000, toko: "ichibot", url: T + "ichibot/st-link-v2-stlink-mini-stm8-stm32-stlink-downloader-programming",
+    spek: ["SWD: SWDIO, SWCLK, GND, 3V3", "Alat bengkel, tidak terpasang di robot"], off: true },
+  { id: "baterai", nama: "LiPo CNHL 4S 5000 mAh 70C", qty: 1, harga: 895000, toko: "e-Hely", url: T + "e-hely/cnhl-5000mah-14-8v-4s-70c-lipo-battery-with-xt90-connector",
+    spek: ["14,8 V nominal, 16,8 V penuh, konektor XT90", "±157 × 49 × 37 mm, ±540 g (estimasi kelas 4S 5000)"] },
+  { id: "bms", nama: "BMS 4S 30 A", qty: 1, harga: 32900, toko: "Supreme ID", url: T + "supreme/4s-14-8v-li-ion-lithium-18650-bms-battery-charger-module-16-8v-30a-power-supply-battery-management-system-1731300360639055475",
+    spek: ["Proteksi over-charge 16,8 V, over-discharge, arus lebih", "Pengisian tetap lewat balance charger"] },
+  { id: "charger", nama: "Charger iMAX B6AC 80 W", qty: 1, harga: 436000, toko: "AMSAN Electronics", url: T + "amsan-electronics/imax-b6ac-80w-6a-b6-ac-rc-battery-balance-charger-discharger-baterai",
+    spek: ["Balance charge 4S, maks 6 A, catu AC bawaan", "Alat bengkel, tidak terpasang di robot"], off: true },
+  { id: "buck", nama: "Buck XL4015 5 A", qty: 1, harga: 20900, toko: "Supreme ID", url: T + "supreme/xl4015-dc-dc-step-down-buck-power-supply-converter-module-heatsink-5a-75w-1731300324811179635",
+    spek: ["Masukan 8–36 V, keluaran disetel 5,0 V", "Mencatu Black Pill dan sensor", "±54 × 23 mm (estimasi)"] },
+  { id: "kaster", nama: "Roda kastor PU 1,5 inci", qty: 1, harga: 6900, toko: "Milano Teknik", url: T + "milanoteknik/roda-1-5-inchi-pu-tetap-hidup-rem-screw-wo-heavy-duty-double-bearing-kastor-caster-troli-1729966729469855894",
+    spek: ["Putar, double bearing", "Diganjal spacer ±12 mm supaya dek rata"] },
+  { id: "pelat", nama: "Pelat aluminium 3 mm, 2 dek", qty: 18, harga: 16897, toko: "Findustri", url: T + "findustri/plat-alumunium-3mm-alumunium-plate-harga-per-10x10-cm2-1729850499413280597",
+    spek: ["2 × 350 × 250 mm, dihitung per potong 10 × 10 cm", "Jarak antar dek 60 mm", "Status toko: pre-order"] },
+  { id: "ultra", nama: "Ultrasonik HC-SR04 3,3 V", qty: 3, harga: 19330, toko: "Rajacell", url: T + "rajacell/sensor-ultrasonic-hc-sr04-3-3v-sensor-jarak-esp8266-raspberry-stm32",
+    spek: ["Jangkauan 2–400 cm, sudut pancar ±15°", "Depan, kiri-depan 30°, kanan-depan 30°", "Aman untuk I/O 3,3 V STM32"] },
+  { id: "ir", nama: "Modul IR TCRT5000", qty: 2, harga: 6500, toko: "CNC Store Bandung", url: T + "cncstorebandung/sensor-line-tracking-line-follower-robot-sensor-inframerah-tcrt5000",
+    spek: ["Jangkauan pantul ±1–25 mm", "Braket turun, ±10 mm dari lantai", "Deteksi garis atau tepi"] },
+  { id: "limit", nama: "Limit switch Omron V-156-1C25", qty: 2, harga: 5250, toko: "Supreme ID", url: T + "supreme/v-156-1c25-omron-micro-limit-contact-switch-long-hinge-roller-lever",
+    spek: ["Tuas roller panjang, sudut depan kiri dan kanan", "Sinyal bumper ke GPIO + interrupt"] },
+  { id: "estop", nama: "Tombol E-stop 22 mm LA38", qty: 1, harga: 14500, toko: "CNC Store Bandung", url: T + "cncstorebandung/push-button-emergency-stop-self-locking-22mm-10a-upto-660vac-la38-11zs",
+    spek: ["Mengunci, kontak NC 10 A", "Memutus daya motor, logika tetap hidup"] },
+  { id: "sekring", nama: "Sekring blade 15 A", qty: 1, harga: 500, toko: "Mitra Abadi", url: T + "mitraspareparts/fuse-blade-besar-sekring-tancap-mobil-atc-15a-15-ampere-19mm",
+    spek: ["Di jalur positif baterai, sebelum E-stop"] },
+];
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const num = (n, d) => n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+document.getElementById("total").textContent = rp(PARTS.reduce((s, p) => s + p.qty * p.harga, 0));
+
+const stage = document.getElementById("stage");
+const threeOK = !!(window.THREE && THREE.OrbitControls);
+if (!threeOK) {
+  stage.insertAdjacentHTML("beforeend", '<div class="err"><p>Model 3D gagal dimuat karena pustaka three.js tidak terunduh. Periksa koneksi lalu muat ulang halaman. Daftar komponen di panel tetap bisa dibaca.</p></div>');
+}
+
+// ---------- daftar komponen ----------
+const listEl = document.getElementById("list"), detailEl = document.getElementById("detail");
+let selected = null;
+PARTS.forEach(p => {
+  const b = document.createElement("button");
+  b.className = "item"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="n">${p.nama}</span><span class="p">${p.harga ? rp(p.qty * p.harga) : "cek harga"}</span>
+    <span class="q">${p.qty} × ${p.harga ? rp(p.harga) : "?"} · ${p.toko}${p.off ? ' · <span class="off">tidak di robot</span>' : ""}</span>`;
+  b.addEventListener("click", () => select(selected === p.id ? null : p.id));
+  listEl.appendChild(b);
+});
+function renderDetail() {
+  const p = PARTS.find(x => x.id === selected);
+  if (!p) {
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian robot di model. Geser "Urai" untuk melihat dek bawah.</p>`;
+    return;
+  }
+  detailEl.innerHTML = `<h2>${p.nama}</h2>
+    <ul>${p.spek.map(s => `<li>${s}</li>`).join("")}</ul>
+    <p class="note" style="margin:0">${p.qty} × ${p.harga ? rp(p.harga) : "harga belum dicek"} · ${p.toko}</p>
+    <a href="${p.url}" target="_blank" rel="noopener">Buka di Tokopedia</a>`;
+}
+renderDetail();
+
+if (!threeOK) return;
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 0.25; controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a949c, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.9);
+sun.position.set(1.2, 2.4, 1.0); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -1.8, right: 1.8, top: 1.8, bottom: -1.8, near: 0.5, far: 6 });
+scene.add(sun);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+const AX = 1.5, AZ = 1.2;
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(AX * 2, AZ * 2), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+function applyTheme() {
+  scene.background = new THREE.Color(css("--scene"));
+  floorMat.color.set(css("--floor"));
+}
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+// arena: dinding, rintangan, lakban garis
+const boxes = [];
+function block(x, z, w, d, h, color) {
+  const m = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), new THREE.MeshStandardMaterial({ color, roughness: 0.8 }));
+  m.position.set(x, h / 2, z); m.castShadow = m.receiveShadow = true; scene.add(m);
+  boxes.push({ x0: x - w / 2, x1: x + w / 2, z0: z - d / 2, z1: z + d / 2 });
+}
+const wallC = 0x7d8a94, woodC = 0xa88b64;
+block(0, -AZ - 0.01, AX * 2 + 0.04, 0.02, 0.12, wallC); block(0, AZ + 0.01, AX * 2 + 0.04, 0.02, 0.12, wallC);
+block(-AX - 0.01, 0, 0.02, AZ * 2, 0.12, wallC); block(AX + 0.01, 0, 0.02, AZ * 2, 0.12, wallC);
+block(0.2, -0.05, 0.3, 0.3, 0.25, woodC); block(1.1, 0.8, 0.25, 0.4, 0.2, woodC);
+block(-0.3, 0.9, 0.5, 0.15, 0.18, woodC); block(1.1, -0.85, 0.3, 0.3, 0.3, woodC);
+const LINE = [[-0.8, -0.5], [0.8, -0.5], [0.8, 0.5], [-0.8, 0.5]], TAPE = 0.019;
+const tapeMat = new THREE.MeshStandardMaterial({ color: 0x111315, roughness: 0.6 });
+for (let i = 0; i < 4; i++) {
+  const [ax, az] = LINE[i], [bx, bz] = LINE[(i + 1) % 4];
+  const len = Math.hypot(bx - ax, bz - az) + TAPE;
+  const t = new THREE.Mesh(new THREE.BoxGeometry(len, 0.0008, TAPE), tapeMat);
+  t.position.set((ax + bx) / 2, 0.0004, (az + bz) / 2); t.rotation.y = -Math.atan2(bz - az, bx - ax);
+  t.receiveShadow = true; scene.add(t);
+}
+
+// ---------- robot (satuan meter, depan = +x lokal, kiri = -z lokal) ----------
+const robot = new THREE.Group(); scene.add(robot);
+const meshes = [];
+const M = (color, metal = 0.1, rough = 0.6) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough });
+function add(part, geo, mat, pos, rot = [0, 0, 0], ex = [0, 0, 0], parent = robot) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos); m.rotation.set(...rot);
+  m.castShadow = m.receiveShadow = true;
+  m.userData = { part, base: new THREE.Vector3(...pos), ex: new THREE.Vector3(...ex), color: mat.color.clone() };
+  parent.add(m); meshes.push(m); return m;
+}
+const BOX = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+const CYZ = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateX(Math.PI / 2); // silinder sepanjang z
+const CY = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s);
+const ALU = 0xb9c0c6, PCB_BLACK = 0x1b1d20;
+const R_W = 0.0425, AXLE_X = 0.06, PB = 0.0655, PT = PB + 0.063, UP = [0, 0.12, 0];
+
+// rangka
+add("pelat", BOX(0.35, 0.003, 0.25), M(ALU, 0.6, 0.38), [0, PB, 0]);
+add("pelat", BOX(0.35, 0.003, 0.25), M(ALU, 0.6, 0.38), [0, PT, 0], [0, 0, 0], UP);
+for (const sx of [-1, 1]) for (const sz of [-1, 1])
+  add("pelat", CY(0.0035, 0.06, 6), M(0xc9a64a, 0.7, 0.35), [sx * 0.16, PB + 0.0315, sz * 0.11], [0, 0, 0], [0, 0.06, 0]);
+
+// motor, braket, kopling, roda (dua sisi)
+const wheels = [];
+for (const s of [-1, 1]) { // s=-1 kiri, s=+1 kanan
+  const zEdge = s * 0.122, EX = [0, -0.02, s * 0.05];
+  add("motor", CYZ(0.018, 0.045), M(0x9aa0a6, 0.7, 0.35), [AXLE_X, R_W, zEdge - s * 0.0225], [0, 0, 0], EX);
+  add("motor", CYZ(0.0182, 0.05), M(0x2e3338, 0.4, 0.5), [AXLE_X, R_W, zEdge - s * 0.07], [0, 0, 0], EX);
+  add("motor", CYZ(0.017, 0.012), M(0x101113, 0.1, 0.7), [AXLE_X, R_W, zEdge - s * 0.101], [0, 0, 0], EX);
+  add("motor", CYZ(0.004, 0.03, 12), M(0xd8dde1, 0.9, 0.2), [AXLE_X, R_W, zEdge + s * 0.012], [0, 0, 0], EX);
+  add("braket", BOX(0.05, 0.004, 0.032), M(0x8e979e, 0.6, 0.4), [AXLE_X, PB - 0.0035, zEdge - s * 0.022], [0, 0, 0], [0, -0.01, s * 0.05]);
+  for (const dx of [-1, 1])
+    add("braket", BOX(0.004, 0.022, 0.032), M(0x8e979e, 0.6, 0.4), [AXLE_X + dx * 0.023, PB - 0.0145, zEdge - s * 0.022], [0, 0, 0], [0, -0.01, s * 0.05]);
+  add("kopling", CYZ(0.007, 0.012, 6), M(0xc8a24a, 0.85, 0.3), [AXLE_X, R_W, s * 0.131], [0, 0, 0], [0, 0, s * 0.08]);
+  const wg = new THREE.Group(); wg.position.set(AXLE_X, R_W, s * 0.148); robot.add(wg);
+  const WEX = [0, 0, s * 0.12];
+  add("roda", CYZ(R_W, 0.038, 40), M(0x1c1d1f, 0, 0.92), [0, 0, 0], [0, 0, 0], WEX, wg);
+  add("roda", CYZ(0.029, 0.04, 32), M(0xb3261e, 0.1, 0.45), [0, 0, 0], [0, 0, 0], WEX, wg);
+  add("roda", CYZ(0.008, 0.042, 6), M(0x2a2b2e, 0.3, 0.5), [0, 0, 0], [0, 0, 0], WEX, wg);
+  for (let i = 0; i < 20; i++) {
+    const a = (i / 20) * Math.PI * 2;
+    add("roda", BOX(0.008, 0.004, 0.036), M(0x1c1d1f, 0, 0.95), [Math.cos(a) * (R_W + 0.0015), Math.sin(a) * (R_W + 0.0015), 0], [0, 0, a + Math.PI / 2], WEX, wg);
+  }
+  wheels.push(wg);
+}
+
+// kaster
+const CX = -0.14, CEX = [0, -0.05, 0];
+add("kaster", BOX(0.04, 0.012, 0.04), M(ALU, 0.6, 0.4), [CX, PB - 0.0075, 0], [0, 0, 0], CEX);
+add("kaster", BOX(0.035, 0.003, 0.035), M(0x8e979e, 0.7, 0.35), [CX, 0.051, 0], [0, 0, 0], CEX);
+for (const dz of [-1, 1]) add("kaster", BOX(0.012, 0.03, 0.003), M(0x8e979e, 0.7, 0.35), [CX - 0.004, 0.035, dz * 0.011], [0, 0, 0], CEX);
+add("kaster", CYZ(0.019, 0.016, 28), M(0x4a6fa5, 0.05, 0.6), [CX - 0.008, 0.019, 0], [0, 0, 0], CEX);
+
+// dek bawah: baterai, BMS, driver, buck, sekring
+const DB = PB + 0.0015;
+add("baterai", BOX(0.157, 0.037, 0.049), M(0x17191c, 0.1, 0.55), [-0.055, DB + 0.0185, 0], [0, 0, 0], [0, 0.03, 0]);
+add("baterai", BOX(0.1, 0.0372, 0.0495), M(0x2563a8, 0.1, 0.5), [-0.055, DB + 0.0185, 0], [0, 0, 0], [0, 0.03, 0]);
+add("baterai", BOX(0.02, 0.012, 0.016), M(0xe0b416, 0.1, 0.5), [0.033, DB + 0.006, 0.012], [0, 0, 0], [0, 0.03, 0]);
+add("bms", BOX(0.05, 0.0016, 0.04), M(0x1f6f43, 0.1, 0.6), [-0.075, DB + 0.006, 0.075], [0, 0, 0], [0, 0.03, 0]);
+add("bms", BOX(0.03, 0.004, 0.02), M(0x222222, 0.2, 0.5), [-0.075, DB + 0.009, 0.075], [0, 0, 0], [0, 0.03, 0]);
+add("driver", BOX(0.084, 0.0016, 0.062), M(0x8f1d1d, 0.1, 0.55), [0.115, DB + 0.008, 0], [0, 0, 0], [0.02, 0.04, 0]);
+for (const dz of [-0.022, 0.022]) add("driver", BOX(0.014, 0.012, 0.02), M(0x2f8a4a, 0.1, 0.6), [0.148, DB + 0.015, dz], [0, 0, 0], [0.02, 0.04, 0]);
+add("driver", BOX(0.03, 0.006, 0.03), M(0x1a1a1a, 0.3, 0.5), [0.1, DB + 0.012, 0], [0, 0, 0], [0.02, 0.04, 0]);
+add("buck", BOX(0.054, 0.0016, 0.023), M(0x1d4ea0, 0.1, 0.55), [-0.06, DB + 0.006, -0.075], [0, 0, 0], [0, 0.03, 0]);
+add("buck", CY(0.007, 0.008, 16), M(0x333333, 0.3, 0.5), [-0.07, DB + 0.011, -0.075], [0, 0, 0], [0, 0.03, 0]);
+add("buck", BOX(0.012, 0.01, 0.018), M(0x9aa0a6, 0.8, 0.3), [-0.045, DB + 0.012, -0.075], [0, 0, 0], [0, 0.03, 0]);
+add("sekring", BOX(0.02, 0.012, 0.01), M(0x111111, 0.1, 0.6), [0.04, DB + 0.006, -0.075], [0, 0, 0], [0, 0.03, 0]);
+add("sekring", BOX(0.012, 0.012, 0.004), M(0x2b6cd4, 0.1, 0.4), [0.04, DB + 0.017, -0.075], [0, 0, 0], [0, 0.03, 0]);
+
+// dek atas: PCB pembawa + Black Pill, E-stop, ultrasonik
+const DT = PT + 0.0015;
+add("mcu", BOX(0.09, 0.0016, 0.07), M(0x2f7d4f, 0.1, 0.6), [0.02, DT + 0.006, 0], [0, 0, 0], UP);
+add("mcu", BOX(0.053, 0.0016, 0.021), M(PCB_BLACK, 0.2, 0.5), [0.02, DT + 0.016, 0], [0, 0, 0], UP);
+add("mcu", BOX(0.007, 0.0012, 0.007), M(0x0b0b0c, 0.3, 0.4), [0.022, DT + 0.0175, 0], [0, 0, 0], UP);
+add("mcu", BOX(0.009, 0.0032, 0.009), M(0xc4c9cc, 0.9, 0.25), [-0.0045, DT + 0.018, 0], [0, 0, 0], UP);
+for (const dz of [-0.0095, 0.0095]) add("mcu", BOX(0.05, 0.0085, 0.0025), M(0x111111, 0.1, 0.6), [0.02, DT + 0.011, dz], [0, 0, 0], UP);
+add("estop", BOX(0.068, 0.05, 0.068), M(0xf2c12e, 0.05, 0.5), [-0.12, DT + 0.025, 0.07], [0, 0, 0], UP);
+add("estop", CY(0.012, 0.012, 24), M(0xd9dde0, 0.8, 0.3), [-0.12, DT + 0.056, 0.07], [0, 0, 0], UP);
+add("estop", CY(0.02, 0.014, 32), M(0xc62828, 0.1, 0.45), [-0.12, DT + 0.069, 0.07], [0, 0, 0], UP);
+const ULTRA = [{ z: -0.08, a: Math.PI / 6 }, { z: 0, a: 0 }, { z: 0.08, a: -Math.PI / 6 }];
+for (const u of ULTRA) {
+  const g = new THREE.Group(); g.position.set(0.158, DT + 0.016, u.z); g.rotation.y = u.a; robot.add(g);
+  const EXU = [0.05, 0.12, 0];
+  add("ultra", BOX(0.0016, 0.02, 0.045), M(0x1f5fbf, 0.1, 0.55), [0, 0, 0], [0, 0, 0], EXU, g);
+  for (const dz of [-0.013, 0.013]) {
+    add("ultra", new THREE.CylinderGeometry(0.008, 0.008, 0.012, 20).rotateZ(Math.PI / 2), M(0xc9ced2, 0.8, 0.3), [0.007, 0, dz], [0, 0, 0], EXU, g);
+  }
+  add("ultra", BOX(0.016, 0.0025, 0.03), M(ALU, 0.6, 0.4), [-0.006, -0.0115, 0], [0, 0, 0], EXU, g);
+}
+// bawah depan: IR & limit switch
+for (const s of [-1, 1]) {
+  add("ir", BOX(0.003, 0.05, 0.016), M(ALU, 0.6, 0.4), [0.163, PB - 0.026, s * 0.06], [0, 0, 0], [0.04, -0.03, 0]);
+  add("ir", BOX(0.032, 0.0016, 0.014), M(0x1f5fbf, 0.1, 0.55), [0.15, 0.014, s * 0.06], [0, 0, 0], [0.04, -0.03, 0]);
+  add("ir", BOX(0.01, 0.005, 0.006), M(0x111111, 0.1, 0.4), [0.158, 0.011, s * 0.06], [0, 0, 0], [0.04, -0.03, 0]);
+  add("limit", BOX(0.028, 0.016, 0.01), M(0x232528, 0.1, 0.5), [0.16, PB - 0.01, s * 0.1], [0, 0, 0], [0.06, 0, 0]);
+  add("limit", BOX(0.03, 0.001, 0.004), M(0xd8dde1, 0.9, 0.25), [0.185, PB - 0.004, s * 0.1], [0, 0, -0.18], [0.06, 0, 0]);
+  add("limit", CYZ(0.0025, 0.004, 12), M(0x111111, 0.1, 0.5), [0.199, PB - 0.008, s * 0.1], [0, 0, 0], [0.06, 0, 0]);
+}
+
+// ---------- urai & pilih ----------
+let explode = 0;
+function applyExplode() { for (const m of meshes) m.position.copy(m.userData.base).addScaledVector(m.userData.ex, explode); }
+const accentColor = () => new THREE.Color(css("--accent"));
+function paint() {
+  const acc = accentColor();
+  for (const m of meshes) {
+    const on = selected === m.userData.part, dim = selected && !on;
+    m.material.transparent = !!dim; m.material.opacity = dim ? 0.16 : 1; m.material.depthWrite = !dim;
+    m.material.emissive.copy(on ? acc : new THREE.Color(0)); m.material.emissiveIntensity = on ? 0.45 : 0;
+  }
+}
+function select(id) {
+  selected = id;
+  listEl.querySelectorAll(".item").forEach(b => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  renderDetail(); if (threeOK) paint();
+}
+document.getElementById("explode").addEventListener("input", e => { explode = +e.target.value; applyExplode(); });
+
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5 || mode !== "k") return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes, false)[0];
+  select(hit ? hit.object.userData.part : null);
+  if (hit) listEl.querySelector(`[data-id="${hit.object.userData.part}"]`)?.scrollIntoView({ block: "nearest" });
+});
+
+// ---------- kamera ----------
+const VIEWS = { iso: [0.5, 0.36, 0.58], top: [0.0001, 0.85, 0.0001], side: [0, 0.1, 0.75], front: [0.75, 0.12, 0] };
+function setView(v) {
+  const t = new THREE.Vector3(pose.x, 0.08, pose.z);
+  const o = new THREE.Vector3(...VIEWS[v]);
+  if (v === "side" || v === "front") o.applyAxisAngle(new THREE.Vector3(0, 1, 0), pose.th);
+  controls.target.copy(t); camera.position.copy(t).add(o); controls.update();
+}
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- simulasi ----------
+const START = { x: -1.05, z: 0.0, th: 0 };
+const pose = { ...START };
+const B = 0.296, D = 0.085, CPR = 7 * 4 * 50.1, RPM_MAX = 150, VMAX = Math.PI * D * RPM_MAX / 60 * 0.92; // ±0,61 m/s berbeban
+const MASS_ROBOT = 3.6; // kg, estimasi dari komponen (pelat 1,4 + motor 0,9 + baterai 0,54 + lain-lain)
+let payload = false, auto = false, mode = "k";
+const st = { vl: 0, vr: 0, encL: 0, encR: 0, bump: false, iAvg: 0.15, autoT: 0, autoTurn: 0 };
+const hold = { f: false, b: false, l: false, r: false };
+const toWorld = (lx, lz) => [pose.x + lx * Math.cos(pose.th) + lz * Math.sin(pose.th), pose.z - lx * Math.sin(pose.th) + lz * Math.cos(pose.th)];
+const inBox = (x, z) => boxes.some(b => x > b.x0 && x < b.x1 && z > b.z0 && z < b.z1);
+function rayDist(x, z, ang) {
+  const dx = Math.cos(ang), dz = -Math.sin(ang); let best = Infinity;
+  for (const b of boxes) {
+    let t0 = -Infinity, t1 = Infinity;
+    for (const [o, d, lo, hi] of [[x, dx, b.x0, b.x1], [z, dz, b.z0, b.z1]]) {
+      if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) { t0 = Infinity; break; } continue; }
+      let a = (lo - o) / d, c = (hi - o) / d; if (a > c) [a, c] = [c, a];
+      t0 = Math.max(t0, a); t1 = Math.min(t1, c);
+    }
+    if (t0 <= t1 && t1 > 0) best = Math.min(best, Math.max(t0, 0));
+  }
+  return best;
+}
+function sonar(u) {
+  const [x, z] = toWorld(0.166, u.z), a = pose.th + u.a;
+  const d = Math.min(rayDist(x, z, a - 0.13), rayDist(x, z, a), rayDist(x, z, a + 0.13));
+  return d < 0.02 ? 0.02 : d;
+}
+function onLine(lx, lz) {
+  const [px, pz] = toWorld(lx, lz);
+  for (let i = 0; i < 4; i++) {
+    const [ax, az] = LINE[i], [bx, bz] = LINE[(i + 1) % 4];
+    const vx = bx - ax, vz = bz - az, t = Math.max(0, Math.min(1, ((px - ax) * vx + (pz - az) * vz) / (vx * vx + vz * vz)));
+    if (Math.hypot(px - (ax + t * vx), pz - (az + t * vz)) < TAPE / 2 + 0.003) return true;
+  }
+  return false;
+}
+const FOOT = [];
+for (const lx of [-0.175, 0, 0.2]) for (const lz of [-0.168, 0, 0.168]) if (lx || lz) FOOT.push([lx, lz]);
+function step(dt) {
+  const m = MASS_ROBOT + (payload ? 5 : 0), aMax = payload ? 0.5 : 0.9;
+  let v = 0, w = 0;
+  const us = ULTRA.map(sonar);
+  if (mode === "s" && auto) {
+    if (st.autoT > 0) { st.autoT -= dt; v = st.autoTurn === 0 ? -0.2 : 0; w = st.autoTurn === 0 ? 0 : st.autoTurn * 2; if (st.autoT <= 0 && st.autoTurn === 0) { st.autoTurn = us[0] > us[2] ? 1 : -1; st.autoT = 0.7; } }
+    else if (st.bump) { st.autoTurn = 0; st.autoT = 0.5; }
+    else if (us[1] < 0.35 || us[0] < 0.25 || us[2] < 0.25) { v = 0.05; w = us[0] > us[2] ? 1.8 : -1.8; }
+    else { v = 0.38; w = (us[2] - us[0]) * 0.4; }
+  } else if (mode === "s") {
+    v = (hold.f ? 1 : 0) - (hold.b ? 1 : 0); v *= VMAX;
+    w = ((hold.l ? 1 : 0) - (hold.r ? 1 : 0)) * 2.6;
+  }
+  let tl = v - w * B / 2, tr = v + w * B / 2;
+  const k = Math.max(1, Math.abs(tl) / VMAX, Math.abs(tr) / VMAX); tl /= k; tr /= k;
+  const ramp = (c, t) => c + Math.max(-aMax * dt, Math.min(aMax * dt, t - c));
+  const nl = ramp(st.vl, tl), nr = ramp(st.vr, tr);
+  const vv = (nl + nr) / 2, ww = (nr - nl) / B;
+  const nth = pose.th + ww * dt, nx = pose.x + vv * Math.cos(pose.th + ww * dt / 2) * dt, nz = pose.z - vv * Math.sin(pose.th + ww * dt / 2) * dt;
+  const save = { ...pose }; Object.assign(pose, { x: nx, z: nz, th: nth });
+  const blocked = FOOT.some(([a, b]) => inBox(...toWorld(a, b)));
+  st.bump = [[0.2, -0.1], [0.2, 0.1]].some(([a, b]) => inBox(...toWorld(a, b)));
+  if (blocked) { Object.assign(pose, save); st.vl = st.vr = 0; } else { st.vl = nl; st.vr = nr; }
+  const accel = Math.abs(tl - nl) + Math.abs(tr - nr) > 1e-4 ? aMax : 0;
+  const pMech = (m * accel + 0.03 * m * 9.81) * (Math.abs(st.vl) + Math.abs(st.vr)) / 2;
+  const iNow = pMech / 0.55 / 14.8 + 0.15;
+  st.iAvg += (iNow - st.iAvg) * Math.min(1, dt * 2);
+  st.encL += st.vl * dt / (Math.PI * D) * CPR; st.encR += st.vr * dt / (Math.PI * D) * CPR;
+  wheels[0].rotation.z -= st.vl * dt / R_W; wheels[1].rotation.z -= st.vr * dt / R_W;
+  robot.position.set(pose.x, 0, pose.z); robot.rotation.y = pose.th;
+  return { us, m };
+}
+
+// kemudi
+const keymap = { w: "f", arrowup: "f", s: "b", arrowdown: "b", a: "l", arrowleft: "l", d: "r", arrowright: "r" };
+addEventListener("keydown", e => {
+  if (mode !== "s" || e.target.closest("input")) return;
+  const k = keymap[e.key.toLowerCase()];
+  if (k) { hold[k] = true; e.preventDefault(); }
+  if (e.key === " ") { Object.keys(hold).forEach(h => hold[h] = false); st.vl = st.vr = 0; e.preventDefault(); }
+});
+addEventListener("keyup", e => { const k = keymap[e.key.toLowerCase()]; if (k) hold[k] = false; });
+document.querySelectorAll(".pad button").forEach(b => {
+  const k = b.dataset.k, on = v => { hold[k] = v; b.classList.toggle("on", v); };
+  b.addEventListener("pointerdown", e => { e.preventDefault(); b.setPointerCapture(e.pointerId); on(true); });
+  ["pointerup", "pointercancel", "lostpointercapture"].forEach(ev => b.addEventListener(ev, () => on(false)));
+});
+const autoBtn = document.getElementById("auto"), loadBtn = document.getElementById("load");
+autoBtn.addEventListener("click", () => { auto = !auto; autoBtn.setAttribute("aria-pressed", auto); st.autoT = 0; });
+loadBtn.addEventListener("click", () => { payload = !payload; loadBtn.setAttribute("aria-pressed", payload); });
+document.getElementById("reset").addEventListener("click", () => {
+  Object.assign(pose, START); Object.assign(st, { vl: 0, vr: 0, encL: 0, encR: 0 }); setView("iso");
+});
+
+// tab
+const tabs = { k: document.getElementById("tab-k"), s: document.getElementById("tab-s") };
+const panes = { k: document.getElementById("pane-k"), s: document.getElementById("pane-s") };
+function setMode(mo) {
+  mode = mo;
+  for (const key of ["k", "s"]) { tabs[key].setAttribute("aria-selected", key === mo); panes[key].hidden = key !== mo; panes[key].style.display = key === mo ? "flex" : ""; }
+  if (mo === "s") { explode = 0; document.getElementById("explode").value = 0; applyExplode(); select(null); auto = false; autoBtn.setAttribute("aria-pressed", false); }
+  else { Object.keys(hold).forEach(h => hold[h] = false); }
+  document.getElementById("hint").textContent = mo === "s" ? "Kamera mengikuti robot. Seret untuk memutar sudut pandang." : "Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.";
+}
+tabs.k.addEventListener("click", () => setMode("k")); tabs.s.addEventListener("click", () => setMode("s"));
+[tabs.k, tabs.s].forEach(t => t.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = t === tabs.k ? tabs.s : tabs.k; n.focus(); n.click(); } }));
+
+// telemetri
+const $ = id => document.getElementById(id);
+const cm = d => d > 4 ? "di luar jangkauan" : `${num(d * 100, 0)} cm`;
+function tele(us, m) {
+  const v = (st.vl + st.vr) / 2, w = (st.vr - st.vl) / B;
+  $("t-v").textContent = `${num(v, 2)} m/s`;
+  $("t-w").textContent = `${num(w * 180 / Math.PI, 0)} °/s`;
+  $("t-rl").textContent = `${num(st.vl / (Math.PI * D) * 60, 0)} rpm`;
+  $("t-rr").textContent = `${num(st.vr / (Math.PI * D) * 60, 0)} rpm`;
+  $("t-el").textContent = num(Math.round(st.encL), 0);
+  $("t-er").textContent = num(Math.round(st.encR), 0);
+  $("t-ul").textContent = cm(us[0]); $("t-uc").textContent = cm(us[1]); $("t-ur").textContent = cm(us[2]);
+  const bp = $("t-bp"); bp.textContent = st.bump ? "tertekan" : "bebas"; bp.className = st.bump ? "state-hit" : "state-ok";
+  $("t-ir").textContent = `${onLine(0.158, -0.06) ? "garis" : "lantai"} / ${onLine(0.158, 0.06) ? "garis" : "lantai"}`;
+  $("t-i").textContent = `${num(st.iAvg, 1)} A`;
+  $("t-u").textContent = `${num(15.2 - st.iAvg * 0.03, 1)} V`;
+  const h = 4 / st.iAvg;
+  $("t-rt").textContent = h > 10 ? `±${num(h, 0)} jam (diam)` : `±${num(h, 1)} jam pada beban ini`;
+  $("massnote").textContent = `Massa dihitung ±${num(m, 1)} kg (robot ±${num(MASS_ROBOT, 1)} kg${payload ? " + muatan 5 kg" : ""}).`;
+}
+
+// ---------- loop ----------
+function resize() {
+  const r = stage.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+robot.position.set(pose.x, 0, pose.z);
+setView("iso"); select(null);
+let last = performance.now(), tAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  const px = pose.x, pz = pose.z;
+  const { us, m } = step(dt);
+  if (mode === "s") { const dx = pose.x - px, dz = pose.z - pz; camera.position.x += dx; camera.position.z += dz; controls.target.x += dx; controls.target.z += dz; }
+  controls.update(); renderer.render(scene, camera);
+  if ((tAcc += dt) > 0.1) { tAcc = 0; tele(us, m); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
