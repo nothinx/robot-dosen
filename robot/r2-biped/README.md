@@ -11,4 +11,14 @@ Spesifikasi asli (`spesifikasi/robotic_arm_specs.docx`):
 - Sensor: enkoder, ultrasonik, IMU, kamera stereoskopik
 
 ## Keputusan
-_Belum ada; didiskusikan satu per satu. Temuan awal: lihat `KONTEKS.md` bagian Robot._
+Usulan + RAB Tokopedia (dicek 6 Nov 2026, total ±Rp17,15 jt belum ongkir) ada di docx dan di
+`visual/r2-biped.html` (model 3D + simulasi torsi sendi). Status: **usulan awal, belum dikunci**.
+
+- Bentuk humanoid tanpa lengan: 12 servo (6 per kaki, hip yaw ditambahkan), badan berisi elektronik, kepala kamera stereo.
+  Lengan = opsi (+6 servo ±Rp4,8 jt).
+- Servo bus ST3215 12 V 30 kg·cm dengan enkoder magnetik 12-bit; adapter bus USB ke Pi.
+- Berat target ±2,3 kg, bukan 6 kg: di simulasi beban servo tertinggi 27/24/34% stall (jalan/jongkok/satu kaki),
+  sedangkan 6 kg → 70/63/87%.
+- Raspberry Pi 5 4 GB (2 GB bisa, hemat ±Rp1,4 jt). LiPo 3S 5000 mAh (bukan 4S 8000) supaya servo 12 V dicatu
+  langsung tanpa regulator dan bobot turun. Charger iMAX B6AC dipakai bersama R1.
+- Rangka aluminium 1,8 mm potong laser; harga per 10 cm² untuk bentuk polos, lubang & tekuk dikonfirmasi ke toko.

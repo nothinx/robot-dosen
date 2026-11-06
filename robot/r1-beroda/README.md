@@ -11,7 +11,7 @@ Spesifikasi asli (`spesifikasi/robotic_arm_specs.docx`):
 - Sensor: enkoder, benturan, ultrasonik, inframerah
 
 ## Keputusan
-Usulan lengkap + RAB Tokopedia (dicek 6 Nov 2026, total ±Rp4,54 jt belum ongkir) ditulis langsung di
+Usulan lengkap + RAB Tokopedia (dicek 6 Nov 2026, total ±Rp4,90 jt belum ongkir, termasuk kabel, konektor, spacer, PCB pembawa) ditulis langsung di
 `spesifikasi/robotic_arm_specs.docx`, di bawah tiap baris spesifikasi dosen (teks biru). User diberi izin dosen
 mengubah spesifikasi dengan alasan. Status: **usulan awal, belum dikunci**.
 

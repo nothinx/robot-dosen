@@ -2,7 +2,8 @@
 
 Sumber: `spesifikasi/PLC_specs.docx`, `spesifikasi/robotic_arm_specs.docx` (salinan dari Downloads, 6 Nov 2026).
 Repo: https://github.com/nothinx/robot-dosen (public, disetujui user 6 Nov 2026) · Pages: https://nothinx.github.io/robot-dosen/
-(`visual/r1-beroda.html`, model 3D + simulasi R1). Status: **analisis awal**, belum ada keputusan lingkup/anggaran/tenggat.
+(indeks → `visual/r1-beroda.html`, `visual/r2-biped.html`). Docx diisi ulang dengan `tools/isi_spesifikasi.py` dari versi asli 08968cb
+(RAB dibaca dari PARTS di halaman visual). Status: R1 & R2 usulan awal; R3 & PLC belum.
 
 Gaya teksnya ("Memiliki …", nilai ±) mirip **spesifikasi teknis pengadaan/hibah alat lab**, bukan dokumen desain.
 Jadi pertanyaan pertama: dosen minta kita **membangun** alatnya, atau **menyusun usulan/RAB/desain** saja?
