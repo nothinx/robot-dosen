@@ -1,0 +1,841 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Model 3D dan simulasi konveyor sortir P2: PLC S7-1200, sensor warna, kamera Raspberry Pi, pelacakan enkoder, silinder reject, komponen usulan dan harga.">
+<title>P2 Konveyor Sortir</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* design · layar aplikasi (visualisasi teknik) · dial E1/R1/M1 · tanda tangan: model 3D + tabel I/O PLC hidup ·
+   font Plex Sans Condensed (judul), Plex Sans (isi), Plex Mono (angka) karena dunia lembar data & gambar teknik */
+/* Layout: kanvas 3D mengisi kiri, panel kerja 380px di kanan; di HP kanvas di atas, panel di bawah. */
+:root {
+  --bg: #eef1f2; --panel: #ffffff; --fg: #16202a; --muted: #55626e; --line: #d3d9de;
+  --accent: #b54708; --accent-fg: #ffffff; --accent-soft: #fbeee4;
+  --ok: #1e7a46; --caution: #8a5a00; --warn: #b42318; --scene: #dde3e7; --floor: #c9d1d6;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+    --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+    --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+  --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+  --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow-x: clip; }
+body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 18px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+h3 { font-family: var(--f-display); font-weight: 600; font-size: 15px; margin: 0; }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 6px; }
+.total b { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+.seg button { min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 14px var(--f-body); cursor: pointer; }
+.seg button[aria-selected="true"] { background: var(--fg); color: var(--panel); }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+  color: var(--fg); font: 500 13px var(--f-body); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.btn.go { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.btn.es { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.btn.es[aria-pressed="true"] { background: var(--warn); color: #fff; border-color: var(--warn); }
+.views .btn { min-height: 36px; background: var(--panel); }
+label.row { display: flex; align-items: center; gap: 10px; }
+label.row span.v { font-family: var(--f-mono); font-size: 12.5px; min-width: 74px; text-align: right; font-variant-numeric: tabular-nums; }
+label.row span.l { min-width: 92px; }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); min-height: 32px; }
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; text-align: left;
+  min-height: 44px; padding: 8px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--fg); font: inherit; cursor: pointer; }
+.item:hover { background: var(--bg); }
+.item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .n { font-weight: 500; min-width: 0; }
+.item .p { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .q { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.item .off { color: var(--muted); }
+.grp { font: 600 12px var(--f-body); color: var(--muted); text-transform: uppercase; letter-spacing: .04em; padding: 12px 6px 4px; border-bottom: 1px solid var(--line); }
+.detail { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.detail ul { margin: 0; padding-left: 18px; }
+.detail li + li { margin-top: 3px; }
+.detail a { color: var(--accent); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cell { background: var(--panel); padding: 8px 10px; min-width: 0; }
+.cell > span { display: block; color: var(--muted); font-size: 12px; }
+.cell b { font-family: var(--f-mono); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.cell.wide { grid-column: 1 / -1; }
+.cell.wide b { font-size: 13px; }
+.state-ok { color: var(--ok); } .state-hit { color: var(--warn); } .state-warn { color: var(--caution); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.tools .btn { flex: 1 1 70px; }
+.err { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--fg); }
+.sub a { color: var(--accent); font-weight: 600; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+.tbl th, .tbl td { border-bottom: 1px solid var(--line); padding: 4px 4px; text-align: left; vertical-align: top; }
+.tbl td.m, .tbl th.m { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tbl tr.on td { background: var(--accent-soft); }
+.tbl tr.on td.val { color: var(--accent); font-weight: 600; }
+.tbl tr.sec th { font-family: var(--f-display); font-size: 13px; padding-top: 10px; }
+.chk { display: flex; align-items: center; gap: 10px; min-height: 44px; cursor: pointer; }
+.chk input { width: 20px; height: 20px; accent-color: var(--accent); }
+.log { font-family: var(--f-mono); font-size: 12px; margin: 0; padding-left: 0; list-style: none; color: var(--muted); }
+.log li:first-child { color: var(--fg); }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .stage { height: 58vh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="views" role="group" aria-label="Sudut pandang">
+      <button class="btn" data-view="iso">Isometrik</button>
+      <button class="btn" data-view="top">Atas</button>
+      <button class="btn" data-view="side">Samping</button>
+      <button class="btn" data-view="insp">Inspeksi</button>
+      <button class="btn" data-view="rej">Reject</button>
+    </div>
+    <p class="hint" id="hint">Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.</p>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <h1>P2 Konveyor Sortir</h1>
+      <nav class="sub"><a href="../index.html">← Semua alat</a></nav>
+      <p class="sub">Konveyor stainless 3 m dengan inspeksi warna dan kamera, produk cacat ditendang silinder ke bin reject.
+        Usulan spesifikasi untuk permintaan dosen, harga Tokopedia per 7 Nov 2026.</p>
+    </header>
+    <div class="total"><span>Perkiraan RAB, belum ongkir</span><b id="total">Rp0</b></div>
+
+    <div class="seg" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-k" aria-selected="true" aria-controls="pane-k">Komponen</button>
+      <button role="tab" id="tab-s" aria-selected="false" aria-controls="pane-s">Simulasi</button>
+    </div>
+
+    <section id="pane-k" role="tabpanel" aria-labelledby="tab-k" style="display:flex;flex-direction:column;gap:14px">
+      <label class="row" for="explode">Urai <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
+      <div class="detail" id="detail" aria-live="polite"></div>
+      <div class="list" id="list"></div>
+      <p class="note">Kompresor dibeli di P1 (konveyor pengepakan) dan dipakai bersama lewat selang; P2 hanya membawa regulator, katup, dan silinder.
+        Harga bertanda estimasi (fabrikasi, pulley custom) dikonfirmasi ke bengkel sebelum pesan. Alat bengkel tidak masuk RAB.</p>
+    </section>
+
+    <section id="pane-s" role="tabpanel" aria-labelledby="tab-s" hidden style="flex-direction:column;gap:14px">
+      <div class="tools" role="group" aria-label="Tombol panel">
+        <button class="btn go" id="b-start">Start</button>
+        <button class="btn" id="b-stop">Stop</button>
+        <button class="btn es" id="b-es" aria-pressed="false">E-stop</button>
+        <button class="btn" id="b-reset">Reset</button>
+      </div>
+      <label class="row"><span class="l">Kecepatan</span><input type="range" id="s-v" min="0.05" max="0.25" step="0.01" value="0.15" aria-label="Kecepatan belt"><span class="v" id="o-v"></span></label>
+      <label class="row"><span class="l">Laju produk</span><input type="range" id="s-r" min="6" max="40" step="1" value="20" aria-label="Laju produk per menit"><span class="v" id="o-r"></span></label>
+      <label class="row"><span class="l">Produk cacat</span><input type="range" id="s-d" min="0" max="0.6" step="0.05" value="0.3" aria-label="Persentase produk menyimpang"><span class="v" id="o-d"></span></label>
+      <label class="row"><span class="l">Massa produk</span><input type="range" id="s-m" min="0.2" max="2" step="0.1" value="0.5" aria-label="Massa per produk"><span class="v" id="o-m"></span></label>
+      <label class="chk"><input type="checkbox" id="c-timer"> Bandingkan: pelacakan pakai timer tetap (tanpa enkoder, dikalibrasi di 0,15 m/s)</label>
+      <div class="grid2">
+        <div class="cell"><span>Kecepatan belt (enkoder)</span><b id="t-v">0,00 m/s</b></div>
+        <div class="cell"><span>HSC1 %ID1000</span><b id="t-c">0</b></div>
+        <div class="cell"><span>Masuk bin normal</span><b id="t-n" class="state-ok">0</b></div>
+        <div class="cell"><span>Ditendang ke reject</span><b id="t-r" class="state-hit">0</b></div>
+        <div class="cell"><span>Salah sortir</span><b id="t-e">0</b></div>
+        <div class="cell"><span>Produk di antrian PLC</span><b id="t-q">0</b></div>
+        <div class="cell"><span>Beban di belt</span><b id="t-w">0,0 kg</b></div>
+        <div class="cell"><span>Daya motor</span><b id="t-p">0 W</b></div>
+        <div class="cell wide"><span>Status</span><b id="t-s">-</b></div>
+      </div>
+      <h3>Antrian pelacakan (shift register)</h3>
+      <table class="tbl" aria-label="Antrian produk di PLC">
+        <thead><tr><th class="m" scope="col">No.</th><th class="m" scope="col">Jarak dari PE1</th><th scope="col">Warna</th><th scope="col">Kamera</th><th scope="col">Keputusan</th></tr></thead>
+        <tbody id="qt"></tbody>
+      </table>
+      <ul class="log" id="log" aria-live="polite"></ul>
+      <h3>I/O PLC S7-1214C</h3>
+      <table class="tbl" aria-label="Daftar I/O PLC dan nilainya">
+        <thead><tr><th class="m" scope="col">Alamat</th><th scope="col">Sinyal</th><th class="m" scope="col">Nilai</th></tr></thead>
+        <tbody id="iot"></tbody>
+      </table>
+      <p class="note">Model sederhana: PLC hanya membaca masukan (fotoelektrik, sensor warna, hasil Pi, enkoder, reed switch) seperti program nyata,
+        produk bergerak bersama belt, silinder Ø20 bergerak ±0,5 m/s setelah jeda katup 30 ms, Pi butuh 70–140 ms per gambar.
+        Daya motor dari gesekan belt di alas (μ 0,35) + 30% rugi pulley, efisiensi girboks 65%. Angka untuk gambaran, bukan hasil uji.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const T = "https://www.tokopedia.com/";
+const PARTS = [
+  { id: "plc", nama: "PLC Siemens S7-1200 CPU 1214C AC/DC/RLY", qty: 1, harga: 7650000, toko: "rajalistrikcibatu", url: T + "rajalistrikcibatu/plc-siemens-s7-1200-simatic-cpu-1214c-ac-dc-relay-6es7214-1bg40-0xb0",
+    spek: ["6ES7214-1BG40-0XB0: catu 220 VAC, 14 DI 24 VDC, 10 DO relay 2 A, 2 AI 0–10 V", "HSC1 membaca enkoder A/B sampai 80 kHz, hasil di %ID1000", "Ethernet/PROFINET, diprogram dengan TIA Portal", "Model sama untuk P1, P2, P3; alternatif murah Outseal disebut di README"], grp: "Panel kontrol" },
+  { id: "psu", nama: "Catu daya Meanwell NDR-240-24 (24 V 10 A)", qty: 1, harga: 783200, toko: "Magna Automation", url: T + "magnaautomation/mean-well-meanwell-ndr-240-24-240w-24vdc-10a-industrial-din-rail-smp",
+    spek: ["Lebih besar dari EDR-120-24 karena beban P2 ±4,5 A kontinu: motor 60 W ±3,2 A, Pi 5 ±0,4 A, LED, katup, sensor", "Arus start motor ±2× nominal; 10 A memberi ruang", "Pemasangan rel DIN"] },
+  { id: "box", nama: "Box panel 30 × 40 × 20 cm plat 1 mm", qty: 1, harga: 145200, toko: "Grand Lite Electric", url: T + "grandlite/box-panel-30x40x20-cm-indoor-plat-1mm",
+    spek: ["Indoor, dipasang di tiang dekat ujung masuk konveyor", "Pintu: tombol, selector, E-stop, lampu, kenop kecepatan"] },
+  { id: "mcb", nama: "MCB Schneider Domae 1P 6 A", qty: 2, harga: 104094, toko: "Schneider Electric", url: T + "schneiderel/schneider-electric-new-domae-mcb-6a-1p-domf01106-1731414053356537748",
+    spek: ["Satu untuk PLC (220 VAC), satu untuk catu 24 V"] },
+  { id: "tombol", nama: "Tombol Schneider XA2 22 mm (Start, Stop, Reset)", qty: 3, harga: 32857, toko: "vsdpedia", url: T + "vsdpedia/schneider-harmony-xa2-push-button-flush-green-tombol-tekan-hijau-22mm-1no-spring-xa2ea31-1730327232241567265-1736665854213850657",
+    spek: ["Pilih varian: hijau 1NO (Start), merah 1NC (Stop), biru 1NO (Reset)", "Stop memakai kontak NC supaya kabel putus = berhenti"] },
+  { id: "selector", nama: "Selector Schneider XA2 2 posisi", qty: 1, harga: 96249, toko: "mgsshoptokopedia", url: T + "mgsshoptokopedia/selector-switch-schneider-electric-dia-22mm-xa2-xb7-2-3-posisi-1-2-no-xa2ed-xb7nd-1731286304501958317",
+    spek: ["Auto / Manual ke %I1.5", "Manual: silinder bisa dites dengan tombol Reset, konveyor jalan selama Start ditekan"] },
+  { id: "estop", nama: "Tombol E-stop Schneider XA2ES542 1NC", qty: 1, harga: 91750, toko: "Mitra Global Electric", url: T + "mitrag/emergency-stop-22mm-1-n-c-schneider-xa2es542",
+    spek: ["Memutus koil relay K0: catu 24 V motor dan katup langsung hilang tanpa menunggu PLC", "Kontak kedua K0 dibaca PLC di %I0.6", "Katup 5/2 pegas: tanpa listrik silinder mundur"] },
+  { id: "lampu", nama: "Pilot lamp LED 22 mm 24 V", qty: 3, harga: 10500, toko: "CNC Store Bandung", url: T + "cncstorebandung/pilot-lamp-led-22mm-ad16-22sm-lampu-indikator-alarm-panel-ac-dc-24v-1731127919372895806",
+    spek: ["Hijau jalan, kuning siaga, merah gangguan", "Dari %Q0.3 … %Q0.5"] },
+  { id: "relay", nama: "Relay Omron MY2N-GS 24 VDC + soket", qty: 2, harga: 57592, toko: "Elmecon", url: T + "elmecon/omron-relay-8-kaki-led-indicator-my2n-gs-r-dc24-by-omz-dengan-plug-in-socket-voltase-24v-untuk-penggunaan-umum-original-product-1729969035175102335",
+    spek: ["K0: rantai E-stop, memberi catu 24 V ke motor & katup", "K1: dari %Q0.0, menjalankan pengendali motor (kontak 5 A)"] },
+  { id: "terminal", nama: "Terminal block UK-2.5B", qty: 30, harga: 1700, toko: "automa88", url: T + "automa88/uk-2-5b-universal-terminal-block-din-rail-0-2-2-5mm-uk2-5b-gray",
+    spek: ["Semua kabel lapangan masuk lewat terminal, tidak langsung ke PLC"] },
+  { id: "rel", nama: "Rel DIN aluminium 1 m", qty: 1, harga: 21300, toko: "megalistrikid", url: T + "megalistrikid/rel-mcb-1-meter-din-rail-aluminium-1m-rel-omega-1-fungsi",
+    spek: ["Dipotong 3 × 27 cm"] },
+  { id: "duct", nama: "Kabel duct 25 × 25 mm", qty: 2, harga: 8000, toko: "Kanglistrik28", url: T + "kanglistrik/kabel-duct-kabel-dak-25x25-mm-pvc-putih",
+    spek: ["Jalur kabel di dalam panel"] },
+  { id: "nyaf", nama: "Kabel NYAF 0,75 mm² per meter", qty: 30, harga: 2400, toko: "PT Sinar Abadi Electric", url: T + "pt-sinar-abadi/kabel-perdana-nyaf-0-75-mm-meteran-eceran-merah", nomesh: true,
+    spek: ["Pengawatan dalam panel; pilih beberapa warna"] },
+  { id: "lan", nama: "Kabel LAN Cat6 2 m", qty: 1, harga: 22428, toko: "sinshe-tekno", url: T + "sinshe-tekno/vention-ibe-2m-kabel-lan-rj45-cat6-cat-6-gigabit-utp-round-black-ibe", nomesh: true,
+    spek: ["Laptop TIA Portal ke PLC"] },
+
+  { id: "hollow", nama: "Hollow stainless 304 40 × 40 × 1,2 mm, batang 6 m", qty: 3, harga: 504992, toko: "idpsteel", url: T + "idpsteel/pipa-kotak-ss304-40x40-x-6000mm-hollow-stainless-304-1732735915511678052",
+    spek: ["Rangka ±13 m (2 rel 3 m, 6 kaki, palang) + tiang silinder & panel ±2 m", "±1,5 kg per meter"], grp: "Konveyor & penggerak" },
+  { id: "plat", nama: "Plat stainless 1,2 mm potongan, per cm²", qty: 12000, harga: 120, toko: "Logamindo", url: T + "logamindo/plat-stainless-steel-1-2-mm-plat-stainless-potongan-1-2mm-per-cm-201-hairline-5ad26",
+    spek: ["Alas luncur 300 × 20 cm, kerudung kamera, corong reject, rel pemandu, pelat dorong, braket: ±12.000 cm²", "Harga tertera varian 201; varian 304 lebih mahal (estimasi)", "Tekuk dikerjakan bengkel"] },
+  { id: "jasa", nama: "Jasa las stainless argon (TIG)", qty: 4, harga: 270000, toko: "Sinar Uhud", url: T + "sinaruhud/jasa-las-stainless-304-argon", nomesh: true,
+    spek: ["Estimasi: dianggap per hari kerja, 4 hari untuk rangka + kerudung + corong", "Satuan harga di toko tidak dijelaskan; minta penawaran bengkel terdekat"] },
+  { id: "kaki", nama: "Kaki penyetel M10 stainless", qty: 6, harga: 29000, toko: "margo-utomo", url: T + "margo-utomo/adjuster-karet-kaki-stabil-kursi-meja-d40-t43-m10-stainless-steel",
+    spek: ["Mendatarkan konveyor; mur M10 dilas di ujung kaki hollow"] },
+  { id: "belt", nama: "Belt PVC putih food grade 200 × 2 mm, per meter", qty: 7, harga: 130000, toko: "Stone Rubberindo", url: T + "stonerubberindo-1/food-grade-belt-pvc-putih-200-mm-2mm-conveyor-belt-pvc-putih-20-cm",
+    spek: ["Keliling 2 × 3000 + π × 60 ≈ 6,2 m, dibeli 7 m", "±2,4 kg/m², total ±3 kg", "Tanyakan sambung endless ke toko"] },
+  { id: "sambung", nama: "Sambungan clipper belt PVC 2–4 mm", qty: 1, harga: 200000, toko: "cv-dika", url: T + "cv-dika/sambungan-conveyor-belt-pvc-dan-rubber-tebal-2-4-mm", nomesh: true,
+    spek: ["Cadangan bila toko belt tidak menyambung endless", "Clipper di pulley Ø60 cukup sempit; sambung panas lebih halus"] },
+  { id: "pulleyk", nama: "Drum pulley Ø60 knurling, as 15 mm (kepala)", qty: 1, harga: 440000, toko: "Mitra Jaya Teknik", url: T + "mitrajayateknik-/drum-pulley-60-mm-x-350-mm-as-15mm-knurling-karter-kasar-permukaan-1730840243702629762",
+    spek: ["Penggerak; permukaan knurling supaya belt tidak selip", "Panjang custom: muka 240 mm, as menembus bearing + 40 mm untuk kopling (estimasi)"] },
+  { id: "pulleye", nama: "Drum pulley Ø60, as 15 mm (ekor)", qty: 1, harga: 193600, toko: "Mitra Jaya Teknik", url: T + "mitrajayateknik-/drum-pulley-60-mm-x-400-x-15-mili",
+    spek: ["Pulley ekor dengan dudukan bearing beralur untuk menegangkan belt", "Ujung as dibubut Ø8 mm untuk kopling enkoder (estimasi)"] },
+  { id: "bearing", nama: "Bearing UCFL 202 as 15 mm", qty: 4, harga: 37500, toko: "CAHAYA SHOP 88", url: T + "danielcahaya28/ucfl-202-as-15mm-pillow-block-merk-asb",
+    spek: ["2 per pulley, baut ke pelat sisi rangka"] },
+  { id: "baut", nama: "Baut L M8 × 30 stainless 304", qty: 30, harga: 2732, toko: "Sumber Baut Sunter", url: T + "sumberbautsunter/m8x30-baut-l-stainless-ss-304-hex-head-socket-screw-8-x-30", nomesh: true,
+    spek: ["Bearing, motor, braket; mur & ring dibeli bersama"] },
+  { id: "motor", nama: "Motor Houle 5DC60W 24 V + girboks 5GU + pengendali", qty: 1, harga: 1584000, toko: "Houle Motor", url: T + "houlemotor/houle-motor-60w-12v-24v-dc-5dc-variable-speed-control-motor-gearbox-set-60watt-dinamo-induction-gearhead-5gn-5gu-reversible-5dc60w-5dc60r-12vdc-24vdc-1732814463841633935",
+    spek: ["Pilih varian 24 V DC + 5GU36K (1:36): ±83 rpm → belt maks ±0,26 m/s di pulley Ø60", "Torsi keluaran ±5,5 N·m (estimasi), kebutuhan 3,1 N·m pada 20 kg: cadangan 1,8×", "Set termasuk pengendali kecepatan; kenopnya dipindah ke pintu panel", "Harga tertera untuk varian 12 V/5GU3K, varian 24 V/36K dikonfirmasi"] },
+  { id: "koplingm", nama: "Kopling jaw L-075", qty: 1, harga: 151500, toko: "Central Technic Indonesia", url: T + "centralteknindo/coupling-jaw-l-075-durajoint-by-duravaz",
+    spek: ["Girboks 5GU (as 15 mm) ke as pulley kepala 15 mm", "Lubang dibor 15 mm + alur pasak oleh toko/bengkel"] },
+
+  { id: "pe", nama: "Sensor fotoelektrik E3F-DS30C4 NPN", qty: 2, harga: 85000, toko: "Tera Automation", url: T + "tera-automation/e3f-ds30c4-npn-photoelectric-switch-ready-stok",
+    spek: ["Difus 30 cm, M18, 24 VDC", "PE1 (%I0.2) memulai pelacakan di titik inspeksi; PE2 (%I0.7) menghitung produk masuk bin normal"], grp: "Sensor & vision" },
+  { id: "braket", nama: "Braket L M18", qty: 2, harga: 12500, toko: "tokoautomation", url: T + "tokoautomation/m18-proximity-switch-sensor-photoelectric-l-mounting-bracket-ps61",
+    spek: ["Dudukan PE1 dan PE2 di rangka sisi depan"] },
+  { id: "warna", nama: "Sensor warna OETAI GDS-3011 (color mark)", qty: 1, harga: 704000, toko: "REUTECH", url: T + "reutech/color-mark-sensor-oetai-gds-3011-oetai-gds-3011w-1729818965007042087",
+    spek: ["12–30 VDC, keluaran NPN, respons 1 ms, jarak baca 10 ± 2 mm, titik cahaya 1 mm", "Diajari warna produk yang benar; keluaran 1 = warna sesuai (%I0.3)", "Dipasang di jendela rel pemandu, membaca sisi produk; rel menjaga jarak tetap"] },
+  { id: "enkoder", nama: "Enkoder Omron E6B2-CWZ6C 600 P/R", qty: 1, harga: 390000, toko: "PLC Centre", url: T + "plccentre/omron-e6b2-cwz6c-incremental-rotary-encoder-1732772958095771289",
+    spek: ["Fase A/B ke %I0.0/%I0.1 (HSC1, mode A/B ×4): 2400 hitungan per putaran", "Di as pulley ekor Ø60: ±0,079 mm per hitungan", "Keluaran NPN open collector 5–24 V"] },
+  { id: "kopling", nama: "Kopling fleksibel 6 × 8 mm", qty: 1, harga: 15000, toko: "bustan", url: T + "bustan/flexible-coupling-d19-l25-6x8-mm-coupler-shaft-clamp-aluminium-6x8mm",
+    spek: ["As enkoder 6 mm ke ujung as pulley ekor 8 mm"] },
+  { id: "pi", nama: "Raspberry Pi 5 4 GB", qty: 1, harga: 3898000, toko: "badank Electronic", url: T + "badank/raspberry-pi-5-4gb-ram-quad-core-processor-2-4ghz-1731250842498532494",
+    spek: ["Mengolah gambar kamera (OpenCV): cacat permukaan, label hilang", "Hasil OK/NG ke PLC lewat relay; pemicu dari PLC lewat optocoupler", "Varian 2 GB cukup untuk OpenCV klasik, hemat ±Rp1,4 jt"] },
+  { id: "cooler", nama: "Active cooler Raspberry Pi 5", qty: 1, harga: 84000, toko: "badank Electronic", url: T + "badank/black-active-cooler-fan-for-raspberry-pi-5-integrated-with-heatsink-1731728899040576654",
+    spek: ["Pi 5 di dalam kotak tertutup perlu pendingin"] },
+  { id: "sd", nama: "microSD SanDisk Extreme 64 GB", qty: 1, harga: 400900, toko: "EAONLINE", url: T + "eaonlineofficial/sandisk-microsdhc-microsdxc-extreme-card-32gb-64gb-128gb-256gb-uhs-i-u3-class-10-1732340774254446015", nomesh: true,
+    spek: ["Sistem operasi + program inspeksi", "Pilih varian 64 GB"] },
+  { id: "kamera", nama: "Raspberry Pi Camera Module 3", qty: 1, harga: 734800, toko: "wirogix", url: T + "wirogix/official-raspberry-pi-camera-module-3-1730004007582402226",
+    spek: ["12 MP, fokus otomatis, dipasang 30 cm di atas belt menghadap bawah", "Diambil satu gambar per produk saat PLC memicu"] },
+  { id: "fpc", nama: "Kabel kamera Pi 5 22-pin ke 15-pin 20 cm", qty: 1, harga: 44000, toko: "Mechatron", url: T + "mechatron/kabel-kamera-display-raspberry-pi-5-ffc-fpc-jumper-cable-original-camera-20cm-b8c2f", nomesh: true,
+    spek: ["Pi 5 memakai konektor kamera 22-pin; kabel bawaan modul 15-pin"] },
+  { id: "buck", nama: "Buck XY-3606 24 V ke 5 V 5 A keluaran USB", qty: 1, harga: 40200, toko: "solarperfect", url: T + "solarperfect/modul-stepdown-xy-3606-dc-9v-36v-input-to-usb-jack-dc-5v-5a",
+    spek: ["Pi dicatu dari 24 V panel, tanpa adaptor stopkontak", "Setel usb_max_current_enable=1 di config Pi"] },
+  { id: "usbc", nama: "Kabel USB-A ke USB-C 3 A", qty: 1, harga: 25166, toko: "sinshe-tekno", url: T + "sinshe-tekno/vention-kabel-data-usb-a-to-type-c-3a-60w-6a-100w-flexible-pvc-fast-charging-1733590721529873831", nomesh: true,
+    spek: ["Buck ke Pi 5"] },
+  { id: "opto", nama: "Optocoupler 24 V ke 5 V 4 kanal", qty: 1, harga: 107500, toko: "Alfa Electro", url: T + "alfaelectro/24v-to-5v-4-channel-optocoupler-board-isolated-module-plc-signal-level",
+    spek: ["Pemicu kamera %Q0.2 (24 V) ke GPIO Pi", "Sisi keluaran dicatu 3,3 V dari Pi, bukan 5 V, supaya GPIO aman"] },
+  { id: "relpi", nama: "Modul relay 2 kanal 5 V", qty: 1, harga: 20000, toko: "ichibot", url: T + "ichibot/modul-relay-2-channel-5v-optocoupler-trigger-high-low-1732946286855881881",
+    spek: ["GPIO Pi ke %I0.4 (hasil siap) dan %I0.5 (OK)", "Kontak kering: 24 V PLC terisolasi penuh dari Pi"] },
+  { id: "boxpi", nama: "Junction box ABS IP65 200 × 120 × 75 mm", qty: 1, harga: 99000, toko: "ciptautamakarya", url: T + "ciptautamakarya/electronik-junction-box-abs-pvc-waterproof-200-x-120-x-75-mm-ip65",
+    spek: ["Di atas kerudung kamera: Pi, buck, optocoupler, relay", "Dekat kamera karena kabel kamera hanya 20 cm"] },
+  { id: "led", nama: "LED strip COB 24 V (gulungan 10 m)", qty: 1, harga: 71000, toko: "glizel", url: T + "glizel/lampu-strip-led-cob-24v-hovlan-10-meter-selang-pita-hias-flexible-1730861669021091205",
+    spek: ["Dipakai 2 × 22 cm di dalam kerudung: cahaya rata tanpa titik, hasil kamera stabil", "Dari %Q0.6; sisa gulungan untuk P1/P3"] },
+  { id: "profil", nama: "Profil aluminium LED 1 m", qty: 1, harga: 14000, toko: "teranglight288", url: T + "teranglight288/led-profile-cover-casing-housing-led-strip-rigid-aluminium-1-meter-body-hitam-14x7mm-lurus-u-cebe3",
+    spek: ["Rumah + penyebar cahaya untuk LED strip"] },
+  { id: "liycy", nama: "Kabel LIYCY 4 × 0,75 berpelindung, per meter", qty: 20, harga: 30000, toko: "Hokila Electric", url: T + "hokilaelectric/kabel-screen-liycy-4x0-75-kabel-liycy-4x0-75-with-screen", nomesh: true,
+    spek: ["Enkoder (wajib berpelindung), kotak Pi, sensor warna, katup, LED, motor"] },
+  { id: "gland", nama: "Cable gland PG9", qty: 12, harga: 900, toko: "Iterno", url: T + "iternoteknik/cable-gland-kabel-gland-pg9-pg-9-4-8mm-iterno-1736091108918003515-1736091122500339515", nomesh: true,
+    spek: ["Kabel masuk panel dan kotak Pi"] },
+
+  { id: "katup", nama: "Katup solenoid Airtac 4V210-08 24 VDC", qty: 1, harga: 59500, toko: "Kitamura Part", url: T + "kitamurapart/selenoid-valve-solenoid-valve-airtac-4v210-08-dc-24",
+    spek: ["5/2 tunggal kembali pegas: listrik hilang = silinder mundur", "Dari %Q0.1; koil ±2,5 W"], grp: "Pneumatik & bin" },
+  { id: "silinder", nama: "Silinder Airtac MAL 20 × 200 bermagnet", qty: 1, harga: 275000, toko: "Jaya Hydromatic", url: T + "jaya-hyd/mal-20x200-mini-cylinder-pneumatic-airtac-mal20x200sca-mal20x200ca-mal20x200ca-fe387",
+    spek: ["Gaya dorong ±157 N di 5 bar; produk 2 kg butuh ±25 N", "Langkah 200 mm: pelat dorong melewati lebar belt sampai corong reject", "Pilih tipe bermagnet (CA/SCA) untuk reed switch"] },
+  { id: "reed", nama: "Reed switch Airtac CS1-U", qty: 2, harga: 39400, toko: "duniaartomoro", url: T + "duniaartomoro/cs1-u-pneumatic-sensor-air-cylinder-magnetic-reed-switch-type-cs1-u",
+    spek: ["Mundur %I1.0, maju %I1.1", "PLC baru menembak lagi setelah silinder benar-benar mundur", "Band pemasang untuk MAL 20 ditanyakan ke toko"] },
+  { id: "brsil", nama: "Braket silinder MAL 20", qty: 1, harga: 49000, toko: "Raja Pneumatic", url: T + "rjpneumatic/bracket-cylinder-bulat-mal-20-1736120675706963233",
+    spek: ["Kaki pemasang silinder ke lengan tiang"] },
+  { id: "frl", nama: "Filter regulator Airtac AFR2000-02", qty: 1, harga: 115100, toko: "Mandiri Teknojaya", url: T + "mandiriteknojaya/air-filter-regulator-pneumatic-airtac-taiwan-afr2000-02-1-4-10bar",
+    spek: ["Udara dari kompresor P1 disetel 5 bar untuk P2", "Kompresor tidak dibeli lagi"] },
+  { id: "selang", nama: "Selang PU 8 × 5 mm, per meter", qty: 13, harga: 4200, toko: "Utama Machinery", url: T + "umachinery/selang-pu-pollyurethane-ukuran-od-8mm-x-5-mm-harga-permeter-1730582353555916368", nomesh: true,
+    spek: ["±10 m dari kompresor P1 + ±3 m lokal (estimasi, tergantung tata letak lab)"] },
+  { id: "fitting", nama: "Fitting lurus PC 08-02", qty: 5, harga: 2200, toko: "Kitamura Part", url: T + "kitamurapart/mpc-08-02-fitting-pneumatic-lurus-male-8mm-drat-1-4-pc-08-02", nomesh: true,
+    spek: ["FRL masuk/keluar, katup P, A, B"] },
+  { id: "speed", nama: "Speed control SL 8 mm × 1/8 inci", qty: 2, harga: 11250, toko: "selektrik", url: T + "selektrik/fitting-pneumatic-sl-speed-control-drat-selang-4-6-8-10-12-14-16mm-1729984811909875196", nomesh: true,
+    spek: ["Di dua port silinder: mengatur kecepatan maju/mundur", "Pilih varian 8 mm drat 1/8 inci"] },
+  { id: "silencer", nama: "Silencer kuningan 1/8 inci", qty: 2, harga: 1500, toko: "Utama Machinery", url: T + "umachinery/silencer-pneumatic-kuningan-moncong-dan-rata-male-fitting-bsl-1-8-1-4-3-8-1-2-inch-1-4-3-8-1-2-1730848821352236613",
+    spek: ["Port buang katup"] },
+  { id: "binr", nama: "Bin reject Krisbow 58 L merah", qty: 1, harga: 295000, toko: "MabaTeknik", url: T + "mabateknik/nestable-container-w-lid-58l-red-lrncr1-krisbow-10133559",
+    spek: ["Di samping konveyor, di bawah corong reject"] },
+  { id: "binn", nama: "Bin normal box container", qty: 1, harga: 119500, toko: "box-container-industri", url: T + "box-container-industri/box-container-rabbit-6688-box-plastik-box-ikan-box-multifungsi",
+    spek: ["Di ujung konveyor, produk jatuh dari pulley kepala"] },
+];
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const num = (n, d) => n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+document.getElementById("total").textContent = rp(PARTS.reduce((s, p) => s + p.qty * p.harga, 0));
+
+const stage = document.getElementById("stage");
+const threeOK = !!(window.THREE && THREE.OrbitControls);
+if (!threeOK) {
+  stage.insertAdjacentHTML("beforeend", '<div class="err"><p>Model 3D gagal dimuat karena pustaka three.js tidak terunduh. Periksa koneksi lalu muat ulang halaman. Daftar komponen di panel tetap bisa dibaca.</p></div>');
+}
+
+// ---------- daftar komponen ----------
+const listEl = document.getElementById("list"), detailEl = document.getElementById("detail");
+let selected = null;
+PARTS.forEach(p => {
+  if (p.grp) listEl.insertAdjacentHTML("beforeend", `<div class="grp">${p.grp}</div>`);
+  const b = document.createElement("button");
+  b.className = "item"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="n">${p.nama}</span><span class="p">${rp(p.qty * p.harga)}</span>
+    <span class="q">${p.qty} × ${rp(p.harga)} · ${p.toko}${p.nomesh ? ' · <span class="off">tidak dimodelkan</span>' : ""}</span>`;
+  b.addEventListener("click", () => select(selected === p.id ? null : p.id));
+  listEl.appendChild(b);
+});
+function renderDetail() {
+  const p = PARTS.find(x => x.id === selected);
+  if (!p) {
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian konveyor di model. Geser "Urai" untuk membuka pintu panel dan memisahkan sensor dari rangkanya.</p>`;
+    return;
+  }
+  detailEl.innerHTML = `<h2>${p.nama}</h2>
+    <ul>${p.spek.map(s => `<li>${s}</li>`).join("")}</ul>
+    <p class="note" style="margin:0">${p.qty} × ${rp(p.harga)} · ${p.toko}</p>
+    <a href="${p.url}" target="_blank" rel="noopener">Buka di Tokopedia</a>`;
+}
+renderDetail();
+
+const tabs = { k: document.getElementById("tab-k"), s: document.getElementById("tab-s") };
+const panes = { k: document.getElementById("pane-k"), s: document.getElementById("pane-s") };
+let mode = "k";
+function select(id) {
+  selected = id;
+  listEl.querySelectorAll(".item").forEach(b => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  renderDetail(); if (threeOK) paint();
+}
+if (!threeOK) { tabs.s.disabled = true; return; }
+
+// ---------- scene (meter; konveyor sepanjang +x, sisi operator/bin reject = +z) ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.02, 60);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 0.3; controls.maxDistance = 9;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a949c, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(2.6, 4.5, 2.4); sun.target.position.set(1.4, 0, 0); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -3, right: 3, top: 3, bottom: -3, near: 0.5, far: 10 });
+scene.add(sun, sun.target);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(7, 4.4), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.position.set(1.4, 0, 0); floor.receiveShadow = true; scene.add(floor);
+function applyTheme() { scene.background = new THREE.Color(css("--scene")); floorMat.color.set(css("--floor")); }
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const meshes = [];
+const M = (color, metal = 0.1, rough = 0.6) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough });
+function add(part, geo, mat, pos, ex = [0, 0, 0], parent = scene, rot = [0, 0, 0]) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos); m.rotation.set(...rot);
+  m.castShadow = m.receiveShadow = true;
+  m.userData = { part, base: new THREE.Vector3(...pos), ex: new THREE.Vector3(...ex) };
+  parent.add(m); meshes.push(m); return m;
+}
+const BOX = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+const CYX = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateZ(Math.PI / 2);
+const CYZ = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s).rotateX(Math.PI / 2);
+const CYY = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s);
+const SS = () => M(0xd8dde1, 0.3, 0.38);
+
+// geometri utama
+const L = 3.0, W = 0.2, BH = 0.8, RP = 0.03;           // panjang, lebar belt, tinggi permukaan belt, jari-jari pulley (Ø60)
+const X_PE1 = 0.7, X_COL = 0.85, X_CAM = 1.1, X_CYL = 2.0, X_PE2 = 2.8;
+const PW = 0.08, PH = 0.06;                             // produk 80 × 80 × 60 mm
+const CNT_REV = 600 * 4, MM_CNT = Math.PI * RP * 2000 / CNT_REV; // enkoder 600 PPR × 4 tepi di poros pulley ekor
+const STROKE = 0.2, Z_PLATE0 = -0.115, PLATE_W = 0.16;
+
+// rangka hollow stainless 40 × 40
+const fz = W / 2 + 0.025;
+for (const s of [-1, 1]) add("hollow", BOX(L + 0.06, 0.04, 0.04), SS(), [L / 2, BH - 0.045, s * fz], [0, 0, s * 0.12]);
+for (const x of [0.12, L / 2, L - 0.12]) for (const s of [-1, 1]) add("hollow", BOX(0.04, BH - 0.065, 0.04), SS(), [x, (BH - 0.065) / 2, s * fz], [0, -0.05, s * 0.12]);
+for (const x of [0.12, L / 2, L - 0.12]) add("hollow", BOX(0.04, 0.04, 2 * fz - 0.04), SS(), [x, 0.18, 0], [0, -0.05, 0]);
+for (const s of [-1, 1]) add("hollow", BOX(L - 0.28, 0.04, 0.04), SS(), [L / 2, 0.18, s * fz], [0, -0.05, s * 0.12]);
+for (const x of [0.12, L / 2, L - 0.12]) for (const s of [-1, 1]) add("kaki", CYY(0.022, 0.012), M(0x2b2f34, 0.1, 0.7), [x, 0.006, s * fz], [0, -0.08, s * 0.12]);
+// alas luncur, corong reject, kerudung kamera, gantry sensor warna, rel pemandu (pelat stainless)
+add("plat", BOX(L, 0.0015, W), SS(), [L / 2, BH - 0.006, 0], [0, -0.03, 0]);
+for (const s of [-1, 1]) add("plat", BOX(1.55, 0.03, 0.0015), SS(), [0.1 + 1.55 / 2, BH + 0.025, s * (PW / 2 + 0.004)], [0, 0.06, s * 0.08]);
+for (const s of [-1, 1]) add("plat", BOX(0.0015, 0.05, 0.12), SS(), [X_CYL + s * 0.2, BH + 0.0, W / 2 + 0.07], [0, 0, 0.15]);
+const chute = add("plat", BOX(0.4, 0.0015, 0.26), SS(), [X_CYL, BH - 0.12, W / 2 + 0.12], [0, 0, 0.15], scene, [0.85, 0, 0]);
+for (const s of [-1, 1]) for (const zz of [-1, 1]) add("plat", BOX(0.025, 0.32, 0.025), SS(), [X_CAM + s * 0.13, BH + 0.16, zz * 0.15], [0, 0.08, zz * 0.06]);
+add("plat", BOX(0.3, 0.0015, 0.33), SS(), [X_CAM, BH + 0.32, 0], [0, 0.12, 0]);
+for (const s of [-1, 1]) add("plat", BOX(0.3, 0.2, 0.0015), SS(), [X_CAM, BH + 0.22, s * 0.165], [0, 0.08, s * 0.08]);
+
+// belt (tekstur bergaris supaya gerakan terlihat) + pulley + bearing
+const tc = document.createElement("canvas"); tc.width = 64; tc.height = 8;
+{ const g = tc.getContext("2d"); g.fillStyle = "#e9ece8"; g.fillRect(0, 0, 64, 8); g.fillStyle = "#c9cfc9"; g.fillRect(0, 0, 3, 8); }
+const beltTex = new THREE.CanvasTexture(tc); beltTex.wrapS = THREE.RepeatWrapping; beltTex.repeat.set(L / 0.1, 1);
+const beltMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.75, map: beltTex });
+add("belt", BOX(L, 0.003, W), beltMat, [L / 2, BH - 0.0015, 0], [0, 0.02, 0]);
+add("belt", BOX(L, 0.003, W), M(0xd9ddd8, 0, 0.8), [L / 2, BH - 2 * RP - 0.0015, 0], [0, 0.02, 0]);
+for (const x of [0, L]) {
+  add("belt", CYZ(RP + 0.002, W, 28), M(0xd9ddd8, 0, 0.8), [x, BH - RP, 0], [0, 0.02, 0]);
+  add(x ? "pulleyk" : "pulleye", CYZ(RP, W + 0.04), SS(), [x, BH - RP, 0], [x ? 0.08 : -0.08, 0, 0]);
+  add(x ? "pulleyk" : "pulleye", CYZ(0.0075, 2 * fz + 0.1), M(0x9aa3aa, 0.7, 0.3), [x, BH - RP, 0], [x ? 0.08 : -0.08, 0, 0]);
+  for (const s of [-1, 1]) {
+    add("bearing", BOX(0.09, 0.09, 0.012), M(0x3d4a56, 0.3, 0.5), [x, BH - RP, s * (fz + 0.026)], [x ? 0.08 : -0.08, 0, s * 0.1]);
+    add("bearing", CYZ(0.022, 0.018), M(0xb7bcc0, 0.7, 0.3), [x, BH - RP, s * (fz + 0.038)], [x ? 0.08 : -0.08, 0, s * 0.1]);
+  }
+}
+// motor + girboks di pulley kepala (sisi belakang -z), driver PWM di panel
+const gz = -(fz + 0.13);
+add("koplingm", CYZ(0.018, 0.035), M(0xc8a24a, 0.5, 0.4), [L, BH - RP, -(fz + 0.07)], [0.1, 0, -0.08]);
+add("motor", BOX(0.09, 0.09, 0.075), M(0x37474f, 0.3, 0.5), [L, BH - RP, gz], [0.1, 0, -0.15]);
+add("motor", CYX(0.04, 0.16), M(0x263238, 0.3, 0.45), [L - 0.125, BH - RP, gz], [0.1, 0, -0.15]);
+add("motor", CYX(0.042, 0.02), M(0x90a4ae, 0.6, 0.3), [L - 0.21, BH - RP, gz], [0.1, 0, -0.15]);
+// enkoder di poros pulley ekor (sisi -z)
+add("kopling", CYZ(0.0095, 0.025), M(0x9aa3aa, 0.8, 0.25), [0, BH - RP, -(fz + 0.063)], [-0.05, 0, -0.12]);
+add("enkoder", CYZ(0.025, 0.035), M(0x1b1d20, 0.3, 0.45), [0, BH - RP, -(fz + 0.095)], [-0.05, 0, -0.18]);
+add("enkoder", BOX(0.07, 0.07, 0.004), SS(), [0, BH - RP, -(fz + 0.076)], [-0.05, 0, -0.15]);
+
+// sensor
+function pe(x) {
+  const g = new THREE.Group(); g.position.set(x, BH + 0.03, W / 2 + 0.045); scene.add(g);
+  add("pe", CYZ(0.009, 0.06), M(0x2a2d31, 0.4, 0.4), [0, 0, 0], [0, 0.03, 0.08], g);
+  add("braket", BOX(0.03, 0.05, 0.003), SS(), [0, -0.02, 0.012], [0, 0.03, 0.06], g);
+  const led = new THREE.Mesh(CYZ(0.004, 0.003), new THREE.MeshBasicMaterial({ color: 0x552200 })); led.position.set(0, 0, 0.031); g.add(led);
+  const beam = new THREE.Mesh(CYZ(0.002, W + 0.02, 8), new THREE.MeshBasicMaterial({ color: 0xff3030, transparent: true, opacity: 0.35 }));
+  beam.position.z = -(W / 2 + 0.045); g.add(beam);
+  return { led, beam };
+}
+const PE1 = pe(X_PE1), PE2 = pe(X_PE2);
+// sensor warna jarak 10 mm: dipasang di jendela rel pemandu, membaca sisi produk
+const ZC = -(PW / 2 + 0.01 + 0.0175);
+add("warna", BOX(0.03, 0.045, 0.035), M(0x23303a, 0.3, 0.45), [X_COL, BH + PH / 2, ZC], [0, 0, -0.1]);
+add("plat", BOX(0.05, 0.003, 0.06), SS(), [X_COL, BH + PH / 2 + 0.024, ZC - 0.01], [0, 0.02, -0.1]);
+const colLed = new THREE.Mesh(BOX(0.006, 0.004, 0.006), new THREE.MeshBasicMaterial({ color: 0x552200 })); colLed.position.set(X_COL + 0.008, BH + PH / 2 + 0.0245, ZC - 0.008); scene.add(colLed);
+const colSpot = new THREE.Mesh(new THREE.CircleGeometry(0.006, 16), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.85 }));
+colSpot.rotation.y = Math.PI; colSpot.position.set(X_COL, BH + PH / 2, -PW / 2 - 0.0015); scene.add(colSpot);
+add("kamera", BOX(0.025, 0.004, 0.024), M(0x1f6f43, 0.1, 0.6), [X_CAM, BH + 0.316, 0], [0, 0.12, 0]);
+add("kamera", CYY(0.006, 0.008), M(0x0b0d10, 0.6, 0.2), [X_CAM, BH + 0.31, 0], [0, 0.12, 0]);
+const leds = [-1, 1].map(s => add("led", BOX(0.22, 0.003, 0.01), M(0xf3f4f0, 0.1, 0.4), [X_CAM, BH + 0.311, s * 0.11], [0, 0.12, s * 0.04]));
+for (const s of [-1, 1]) add("profil", BOX(0.22, 0.007, 0.014), M(0x2a2c2f, 0.5, 0.4), [X_CAM, BH + 0.316, s * 0.11], [0, 0.14, s * 0.04]);
+add("relpi", BOX(0.04, 0.012, 0.05), M(0x1d4ea0, 0.1, 0.55), [X_CAM + 0.02, BH + 0.335, -0.035], [0, 0.42, -0.04]);
+add("boxpi", BOX(0.2, 0.065, 0.12), M(0x8f979e, 0.1, 0.55), [X_CAM, BH + 0.355, 0], [0, 0.32, 0]);
+add("pi", BOX(0.085, 0.004, 0.056), M(0x2f7d4f, 0.1, 0.6), [X_CAM - 0.02, BH + 0.33, 0], [0, 0.42, 0]);
+add("cooler", BOX(0.05, 0.01, 0.04), M(0x1b1d20, 0.4, 0.4), [X_CAM - 0.025, BH + 0.338, 0], [0, 0.48, 0]);
+add("buck", BOX(0.045, 0.004, 0.03), M(0x1d4ea0, 0.1, 0.55), [X_CAM + 0.06, BH + 0.33, -0.02], [0, 0.42, 0]);
+add("opto", BOX(0.05, 0.004, 0.04), M(0x2b6e3f, 0.1, 0.55), [X_CAM + 0.07, BH + 0.33, 0.03], [0, 0.42, 0.04]);
+
+// silinder reject + katup + FRL di tiang sisi -z
+const cy = BH + 0.032;
+add("hollow", BOX(0.04, cy, 0.04), SS(), [X_CYL, cy / 2, -0.47], [0, 0, -0.15]);
+add("hollow", BOX(0.04, 0.04, 0.3), SS(), [X_CYL, cy - 0.04, -0.33], [0, 0, -0.15]);
+add("silinder", CYZ(0.016, 0.27), M(0xb8c2ca, 0.6, 0.3), [X_CYL, cy, -0.3], [0, 0, -0.2]);
+for (const zz of [-0.435, -0.165]) add("silinder", BOX(0.034, 0.034, 0.012), M(0x5f6b74, 0.5, 0.4), [X_CYL, cy, zz], [0, 0, -0.2]);
+for (const zz of [-0.425, -0.175]) add("brsil", BOX(0.045, 0.012, 0.012), M(0x8d969d, 0.6, 0.35), [X_CYL, cy - 0.02, zz], [0, -0.03, -0.2]);
+const reedB = add("reed", BOX(0.008, 0.006, 0.025), M(0x1b1d20, 0.2, 0.5), [X_CYL, cy + 0.018, -0.4], [0, 0.05, -0.2]);
+const reedF = add("reed", BOX(0.008, 0.006, 0.025), M(0x1b1d20, 0.2, 0.5), [X_CYL, cy + 0.018, -0.2], [0, 0.05, -0.2]);
+const piston = new THREE.Group(); scene.add(piston);
+add("silinder", CYZ(0.005, 0.24), M(0xe0e4e7, 0.9, 0.2), [X_CYL, cy, Z_PLATE0 - 0.003 - 0.12], [0, 0, 0], piston);
+add("plat", BOX(PLATE_W, 0.05, 0.006), SS(), [X_CYL, cy, Z_PLATE0 - 0.003], [0, 0, 0], piston);
+add("katup", BOX(0.022, 0.05, 0.11), M(0x2d2f33, 0.3, 0.5), [X_CYL + 0.04, cy - 0.085, -0.4], [0.06, 0, -0.1]);
+add("katup", BOX(0.024, 0.03, 0.03), M(0x1565c0, 0.2, 0.5), [X_CYL + 0.04, cy - 0.085, -0.335], [0.06, 0, -0.1]);
+add("silencer", CYY(0.005, 0.02), M(0xc9a227, 0.7, 0.3), [X_CYL + 0.04, cy - 0.12, -0.42], [0.06, -0.03, -0.1]);
+add("frl", CYY(0.022, 0.09), M(0xd9dde0, 0.2, 0.3), [X_CYL - 0.05, 0.55, -0.47], [-0.06, 0, -0.1]);
+add("frl", BOX(0.045, 0.04, 0.045), M(0x37474f, 0.3, 0.5), [X_CYL - 0.05, 0.62, -0.47], [-0.06, 0, -0.1]);
+add("frl", CYY(0.012, 0.02), M(0xeeeeee, 0.1, 0.4), [X_CYL - 0.05, 0.655, -0.47], [-0.06, 0, -0.1]);
+
+// bin: kotak terbuka
+function bin(part, x, z, w, d, h, color) {
+  const mt = M(color, 0.05, 0.7);
+  add(part, BOX(w, 0.01, d), mt, [x, 0.005, z]);
+  for (const s of [-1, 1]) { add(part, BOX(w, h, 0.01), mt, [x, h / 2, z + s * d / 2]); add(part, BOX(0.01, h, d), mt, [x + s * w / 2, h / 2, z]); }
+}
+const BINR = { x: X_CYL, z: W / 2 + 0.4, w: 0.6, d: 0.4, h: 0.3 }, BINN = { x: L + 0.24, z: 0, w: 0.3, d: 0.45, h: 0.28 };
+bin("binr", BINR.x, BINR.z, BINR.w, BINR.d, BINR.h, 0xc0392b);
+bin("binn", BINN.x, BINN.z, BINN.w, BINN.d, BINN.h, 0x2e6da4);
+
+// panel kontrol di tiang dekat ujung masuk, pintu menghadap +z
+const pnl = { x: -0.45, y: 1.12, z: -0.42 };
+add("hollow", BOX(0.04, pnl.y - 0.2, 0.04), SS(), [pnl.x, (pnl.y - 0.2) / 2, pnl.z - 0.12], [0, 0, 0]);
+add("plat", BOX(0.3, 0.008, 0.3), SS(), [pnl.x, 0.004, pnl.z - 0.12], [0, 0, 0]);
+const PG = new THREE.Group(); PG.position.set(pnl.x, pnl.y, pnl.z); scene.add(PG);
+const grey = M(0xd5d8d6, 0.2, 0.55);
+add("box", BOX(0.3, 0.4, 0.004), grey, [0, 0, -0.098], [0, 0, 0], PG);
+for (const s of [-1, 1]) { add("box", BOX(0.004, 0.4, 0.2), grey, [s * 0.15, 0, 0], [0, 0, 0], PG); add("box", BOX(0.3, 0.004, 0.2), grey, [0, s * 0.2, 0], [0, 0, 0], PG); }
+for (const yy of [0.11, -0.03, -0.14]) add("rel", BOX(0.27, 0.008, 0.035), M(0xb0b6bb, 0.7, 0.3), [0, yy, -0.088], [0, 0, 0.02], PG);
+add("plc", BOX(0.11, 0.1, 0.075), M(0x2e3b41, 0.2, 0.5), [-0.06, 0.11, -0.05], [0, 0, 0.1], PG);
+add("plc", BOX(0.11, 0.012, 0.004), M(0x4caf50, 0.1, 0.5), [-0.06, 0.135, -0.011], [0, 0, 0.1], PG);
+add("psu", BOX(0.04, 0.125, 0.1), M(0xb8bdc2, 0.6, 0.35), [0.07, 0.11, -0.04], [0, 0, 0.1], PG);
+for (const i of [0, 1]) add("mcb", BOX(0.018, 0.08, 0.07), M(0xf2f2f0, 0.05, 0.6), [0.115 + i * 0.019 - 0.019, 0.11, -0.05], [0, 0, 0.1], PG);
+for (const i of [0, 1]) add("relay", BOX(0.022, 0.035, 0.05), M(0x9e9e9e, 0.1, 0.4), [-0.11 + i * 0.03, -0.03, -0.06], [0, 0, 0.1], PG);
+add("motor", BOX(0.05, 0.035, 0.03), M(0x1d4ea0, 0.1, 0.55), [-0.02, -0.03, -0.07], [0, 0, 0.1], PG);
+for (let i = 0; i < 16; i++) add("terminal", BOX(0.006, 0.045, 0.04), M(0x9ea3a6, 0.05, 0.6), [-0.11 + i * 0.0068, -0.14, -0.065], [0, 0, 0.1], PG);
+add("duct", BOX(0.27, 0.025, 0.025), M(0x9aa0a4, 0.05, 0.7), [0, 0.035, -0.085], [0, 0, 0.06], PG);
+add("duct", BOX(0.27, 0.025, 0.025), M(0x9aa0a4, 0.05, 0.7), [0, -0.085, -0.085], [0, 0, 0.06], PG);
+// pintu + tombol
+const door = new THREE.Group(); door.userData.ex = new THREE.Vector3(0.0, 0, 0.32); PG.add(door);
+const dz0 = 0.102;
+add("box", BOX(0.3, 0.4, 0.004), grey, [0, 0, dz0], [0, 0, 0], door);
+const btn = (part, x, y, c, r = 0.011) => add(part, CYZ(r, 0.014), M(c, 0.1, 0.4), [x, y, dz0 + 0.008], [0, 0, 0], door);
+btn("tombol", -0.08, -0.03, 0x2e7d32); btn("tombol", 0, -0.03, 0xc62828); btn("tombol", 0.08, -0.03, 0x1565c0);
+add("selector", CYZ(0.013, 0.012), M(0x1b1d20, 0.1, 0.5), [-0.08, -0.12, dz0 + 0.008], [0, 0, 0], door);
+add("selector", BOX(0.006, 0.02, 0.008), M(0xeeeeee, 0.1, 0.5), [-0.08, -0.12, dz0 + 0.018], [0, 0, 0], door, [0, 0, -0.6]);
+add("motor", CYZ(0.012, 0.016), M(0x37474f, 0.2, 0.5), [0, -0.12, dz0 + 0.009], [0, 0, 0], door);
+add("estop", CYZ(0.03, 0.004), M(0xf2c200, 0.1, 0.5), [0.08, -0.12, dz0 + 0.004], [0, 0, 0], door);
+add("estop", CYZ(0.02, 0.018), M(0xd32f2f, 0.1, 0.4), [0.08, -0.12, dz0 + 0.014], [0, 0, 0], door);
+const lamps = [[-0.08, 0x2e7d32], [0, 0xf9a825], [0.08, 0xc62828]].map(([x, c]) => add("lampu", CYZ(0.011, 0.01), M(c, 0.05, 0.35), [x, 0.09, dz0 + 0.006], [0, 0, 0], door));
+
+// ---------- urai & pilih ----------
+let explode = 0;
+function applyExplode() {
+  for (const m of meshes) m.position.copy(m.userData.base).addScaledVector(m.userData.ex, explode);
+  door.position.copy(door.userData.ex).multiplyScalar(explode);
+}
+function paint() {
+  const acc = new THREE.Color(css("--accent"));
+  for (const m of meshes) {
+    const on = selected === m.userData.part, dim = selected && !on;
+    m.material.transparent = !!dim; m.material.opacity = dim ? 0.16 : 1; m.material.depthWrite = !dim;
+    m.material.emissive.copy(on ? acc : new THREE.Color(0)); m.material.emissiveIntensity = on ? 0.45 : 0;
+  }
+  for (const o of fx) o.visible = !selected;
+  for (const p of prods) p.mesh.visible = !selected;
+}
+document.getElementById("explode").addEventListener("input", e => { explode = +e.target.value; applyExplode(); });
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5 || mode !== "k") return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(meshes, false)[0];
+  const id = hit && PARTS.some(p => p.id === hit.object.userData.part) ? hit.object.userData.part : null;
+  select(id);
+  if (id) listEl.querySelector(`[data-id="${id}"]`)?.scrollIntoView({ block: "nearest" });
+});
+
+// ---------- kamera ----------
+const VIEWS = {
+  iso: [[1.2, 0.5, 0], [-1.5, 2.1, 3.9]], top: [[1.4, 0.4, 0], [0.0001, 3.6, 0.0001]], side: [[1.4, 0.6, 0], [0, 0.4, 3.3]],
+  insp: [[0.95, 0.85, 0], [-0.8, 0.35, 0.5]], rej: [[2.0, 0.6, 0.1], [0.9, 0.9, 1.5]],
+};
+function setView(v) { const [t, o] = VIEWS[v]; controls.target.set(...t); camera.position.set(t[0] + o[0], t[1] + o[1], t[2] + o[2]); controls.update(); }
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- simulasi ----------
+// produk
+const COLORS = { hijau: 0x2e9d57, merah: 0xd64541, kuning: 0xf2c230, biru: 0x2f74c0 };
+const pMat = Object.fromEntries(Object.entries(COLORS).map(([k, c]) => [k, M(c, 0.05, 0.55)]));
+const scratchMat = M(0x1b1d20, 0, 0.9), labelMat = M(0xf4f4f0, 0, 0.8);
+const prods = [], fx = [PE1.led, PE1.beam, PE2.led, PE2.beam, colLed, colSpot];
+let pid = 0;
+function spawn() {
+  const bad = Math.random() < ui.dev;
+  const kind = bad ? (Math.random() < 0.5 ? "warna" : "cacat") : "baik";
+  const color = kind === "warna" ? ["merah", "kuning", "biru"][Math.floor(Math.random() * 3)] : "hijau";
+  const g = new THREE.Group();
+  const body = new THREE.Mesh(BOX(PW, PH, PW), pMat[color]); body.castShadow = body.receiveShadow = true; g.add(body);
+  const lab = new THREE.Mesh(BOX(PW * 0.62, 0.002, PW * 0.5), labelMat); lab.position.y = PH / 2 + 0.001; g.add(lab);
+  if (kind === "cacat") { // goresan + label sobek: hanya kamera yang melihat
+    lab.scale.set(0.55, 1, 1); lab.position.x = -0.012;
+    const s = new THREE.Mesh(BOX(0.05, 0.003, 0.006), scratchMat); s.position.set(0.006, PH / 2 + 0.002, 0.016); s.rotation.y = 0.5; g.add(s);
+  }
+  g.visible = !selected;
+  scene.add(g);
+  const p = { id: ++pid, mesh: g, x: 0.06, z: 0, y: BH + PH / 2, vy: 0, st: "belt", kind, color, good: kind === "baik" };
+  prods.push(p); return p;
+}
+
+const ui = { v: 0.15, rate: 20, dev: 0.3, mass: 0.5, timer: false };
+const btnState = { start: 0, stop: 0, reset: 0, es: false };
+const phy = { t: 0, v: 0, pos: 0, ext: 0, valveT: 9, valve: false, spawnAcc: 0, pi: { t: -1, ok: false, strobeT: 0, out: false, rdy: false, lat: 0 }, trigPrev: false };
+const I = {}, Q = {};
+const plc = { run: false, fault: false, queue: [], prevPE1: false, prevPE2: false, prevRdy: false, nNorm: 0, nRej: 0, trigT: 0, cntPrev: 0, vMeas: 0, vT: 0, timerPos: 0, fireBy: null };
+const truth = { err: 0 };
+const log = [];
+const say = s => { log.unshift(s); log.length = Math.min(log.length, 4); };
+const V_CAL = 0.15, T_HIT = 0.03 + (-PW / 2 - Z_PLATE0) / 0.5; // waktu dari katup ON sampai pelat menyentuh produk
+const D = { col: X_COL - X_PE1 + PW / 2, cam: X_CAM - X_PE1 + PW / 2, cyl: X_CYL - X_PE1 + PW / 2, end: L - X_PE1 + PW / 2 + 0.05 };
+
+const onBelt = p => p.st === "belt";
+const under = (x, tol) => prods.some(p => onBelt(p) && Math.abs(p.x - x) < tol);
+function readInputs() {
+  const cnt = Math.floor(phy.pos * 1000 / MM_CNT);
+  I.encA = (cnt >> 1) & 1; I.encB = ((cnt + 1) >> 1) & 1; I.cnt = cnt;
+  I.pe1 = under(X_PE1, PW / 2);
+  const pc = prods.find(p => onBelt(p) && Math.abs(p.x - X_COL) < PW / 2 - 0.01);
+  I.warna = !!pc && pc.color === "hijau";
+  I.piRdy = phy.pi.rdy; I.piOk = phy.pi.out;
+  I.es = !btnState.es;            // NC: 1 = aman
+  I.pe2 = under(X_PE2, PW / 2);
+  I.rB = phy.ext < 0.005; I.rF = phy.ext > STROKE - 0.005;
+  I.start = btnState.start > 0; I.stop = !(btnState.stop > 0); I.reset = btnState.reset > 0; I.auto = true;
+}
+
+// program PLC (satu siklus scan)
+function scan(dt) {
+  const cnt = I.cnt;
+  if (!I.es) { if (!plc.fault) say("E-stop ditekan: motor & katup diputus"); plc.fault = true; plc.run = false; }
+  if (I.reset && I.es && plc.fault) { plc.fault = false; say("Reset: gangguan dihapus, tekan Start"); }
+  if (I.start && !plc.fault && !plc.run) { plc.run = true; say("Start: konveyor jalan"); }
+  if (!I.stop && plc.run) { plc.run = false; say("Stop: konveyor berhenti, antrian disimpan"); }
+  // kecepatan terukur dari HSC tiap 100 ms
+  plc.vT += dt; if (plc.vT >= 0.1) { plc.vMeas = (cnt - plc.cntPrev) * MM_CNT / 1000 / plc.vT; plc.cntPrev = cnt; plc.vT = 0; }
+  if (Q.motor) plc.timerPos += V_CAL * dt;  // pembanding: jarak ditebak dari waktu
+  const pos = e => ui.timer ? plc.timerPos - e.t0 : (cnt - e.c0) * MM_CNT / 1000;
+  if (I.pe1 && !plc.prevPE1) plc.queue.push({ n: plc.queue.length ? plc.queue[plc.queue.length - 1].n + 1 : 1, c0: cnt, t0: plc.timerPos, warna: null, cam: null, trig: 0, fired: false });
+  plc.prevPE1 = I.pe1;
+  if (I.piRdy && !plc.prevRdy) { const e = plc.queue.find(e => e.trig && e.cam === null); if (e) e.cam = I.piOk; }
+  plc.prevRdy = I.piRdy;
+  Q.trig = false;
+  const lead = (ui.timer ? V_CAL : plc.vMeas) * T_HIT;
+  for (const e of plc.queue) {
+    const d = pos(e);
+    if (e.warna === null && d >= D.col) e.warna = I.warna;
+    if (!e.trig && d >= D.cam) { e.trig = phy.t; }
+    if (e.trig && phy.t - e.trig < 0.05) Q.trig = true;
+    if (e.trig && e.cam === null && phy.t - e.trig > 0.5) { e.cam = false; say(`No. ${e.n}: Pi tidak menjawab, dianggap NG`); }
+    e.ng = e.warna === false || e.cam === false;
+    if (e.ng && !e.fired && d >= D.cyl - lead && d < D.cyl + 0.08 && I.rB && !plc.fireBy && Q.motor) {
+      e.fired = true; plc.fireBy = e; plc.nRej++; say(`No. ${e.n}: ${e.warna === false ? "warna salah" : "cacat permukaan"}, silinder ditembak`);
+    }
+  }
+  if (plc.fireBy && I.rF) plc.fireBy = null;
+  if (!plc.run) plc.fireBy = plc.fault ? null : plc.fireBy;
+  plc.queue = plc.queue.filter(e => pos(e) < D.end);
+  if (I.pe2 && !plc.prevPE2) plc.nNorm++;
+  plc.prevPE2 = I.pe2;
+  Q.motor = plc.run && I.es; Q.valve = !!plc.fireBy && I.es;
+  Q.hijau = plc.run; Q.kuning = !plc.run && !plc.fault; Q.merah = plc.fault && (phy.t % 1 < 0.5); Q.led = plc.run;
+}
+
+// dunia fisik
+function physics(dt) {
+  phy.t += dt;
+  const tgt = Q.motor ? ui.v : 0, tau = I.es ? 0.25 : 0.06;
+  phy.v += (tgt - phy.v) * Math.min(1, dt / tau); if (phy.v < 1e-4 && !tgt) phy.v = 0;
+  phy.pos += phy.v * dt;
+  // katup 5/2 tunggal pegas: ON → maju, OFF → mundur, jeda 30 ms
+  if (Q.valve !== phy.valve) { phy.valve = Q.valve; phy.valveT = 0; } else phy.valveT += dt;
+  if (phy.valveT > 0.03) phy.ext = phy.valve ? Math.min(STROKE, phy.ext + 0.5 * dt) : Math.max(0, phy.ext - 0.6 * dt);
+  // Pi: tepi naik pemicu → ambil gambar, olah 70–140 ms, keluarkan OK + strobe 60 ms
+  if (Q.trig && !phy.trigPrev && phy.pi.t < 0) {
+    const p = prods.find(p => onBelt(p) && Math.abs(p.x - X_CAM) < 0.03);
+    phy.pi = { t: 0, lat: 0.07 + Math.random() * 0.07, ok: !!p && p.kind !== "cacat", strobeT: 0, out: phy.pi.out, rdy: false };
+  }
+  phy.trigPrev = Q.trig;
+  if (phy.pi.t >= 0) { phy.pi.t += dt; if (phy.pi.t >= phy.pi.lat) { phy.pi.out = phy.pi.ok; phy.pi.rdy = true; phy.pi.strobeT = 0.06; phy.pi.t = -1; } }
+  else if (phy.pi.rdy && (phy.pi.strobeT -= dt) <= 0) phy.pi.rdy = false;
+  // operator meletakkan produk dengan laju tertentu selama belt jalan
+  if (phy.v > 0.02) {
+    phy.spawnAcc += dt;
+    const last = prods.filter(onBelt).reduce((m, p) => Math.min(m, p.x), 9);
+    if (phy.spawnAcc >= 60 / ui.rate && last > 0.06 + PW + 0.03) { phy.spawnAcc = 0; spawn(); }
+  }
+  const zf = Z_PLATE0 + phy.ext;
+  const ovf = x => Math.abs(x - X_CYL) < PLATE_W / 2 + PW * 0.3;
+  let ahead = null;
+  for (const p of prods.filter(onBelt).sort((a, b) => b.x - a.x)) {
+    const x0 = p.x;
+    p.x += phy.v * dt;
+    if (ahead && Math.abs(ahead.z - p.z) < PW) p.x = Math.min(p.x, Math.max(x0, ahead.x - PW - 0.002)); // antre di belakang produk yang tertahan
+    // pelat yang sudah maju menahan produk yang baru datang; produk yang sudah di depan pelat ikut terdorong
+    if (ovf(p.x) && zf > p.z - PW / 2) { if (ovf(x0)) p.z = zf + PW / 2; else p.x = x0; }
+    ahead = p;
+  }
+  for (const p of prods) {
+    if (p.st === "belt") {
+      if (p.z > W / 2 + 0.005) { p.st = "rej"; p.u = 0; p.from = [p.x, p.z]; p.slot = slot("rej"); }
+      else if (p.x > L + 0.01) { p.st = "norm"; p.vx = phy.v; p.vy = 0; p.slot = slot("norm"); }
+    } else if (p.st === "rej") {
+      p.u = Math.min(1, p.u + dt / 0.45);
+      const u = p.u; p.x = p.from[0] + (p.slot[0] - p.from[0]) * u; p.z = p.from[1] + (p.slot[2] - p.from[1]) * u;
+      p.y = BH + PH / 2 - (BH + PH / 2 - p.slot[1]) * u * u; p.mesh.rotation.x = u * 0.9 * (1 - u) * 2;
+      if (u >= 1) land(p, "rej");
+    } else if (p.st === "norm") {
+      p.vy -= 9.81 * dt; p.y += p.vy * dt; p.x = Math.min(p.x + p.vx * dt, p.slot[0]);
+      if (p.y <= p.slot[1]) { p.y = p.slot[1]; p.x = p.slot[0]; p.z = p.slot[2]; land(p, "norm"); }
+    }
+  }
+}
+const binN = { rej: 0, norm: 0 }, inBin = { rej: [], norm: [] };
+function slot(b) {
+  const B = b === "rej" ? BINR : BINN, i = binN[b]++ % 18, cols = b === "rej" ? 3 : 2, rows = 3;
+  const c = i % cols, r = Math.floor(i / cols) % rows, lay = Math.floor(i / (cols * rows));
+  const nx = b === "rej" ? cols : rows, nz = b === "rej" ? rows : cols, ix = b === "rej" ? c : r, iz = b === "rej" ? r : c;
+  return [B.x + (ix - (nx - 1) / 2) * 0.095, 0.01 + PH / 2 + lay * PH, B.z + (iz - (nz - 1) / 2) * 0.09];
+}
+function land(p, b) {
+  p.st = "bin"; p.mesh.rotation.set(0, (Math.random() - 0.5) * 0.4, 0);
+  if ((b === "norm") !== p.good) { truth.err++; say(`Produk ${p.kind === "baik" ? "baik masuk reject" : "cacat lolos ke bin normal"}`); }
+  inBin[b].push(p);
+  if (inBin[b].length > 18) { const o = inBin[b].shift(); scene.remove(o.mesh); prods.splice(prods.indexOf(o), 1); }
+}
+
+function step(dt) {
+  const n = Math.max(1, Math.ceil(dt / 0.004)), h = dt / n;
+  for (let i = 0; i < n; i++) {
+    readInputs(); scan(h); physics(h);
+    for (const k of ["start", "stop", "reset"]) if (btnState[k] > 0) btnState[k] -= h;
+  }
+}
+
+// gambar ulang objek bergerak
+function draw() {
+  beltTex.offset.x = -(phy.pos / 0.1) % 1;
+  piston.position.z = phy.ext;
+  for (const p of prods) p.mesh.position.set(p.x, p.y, p.z);
+  PE1.led.material.color.set(I.pe1 ? 0xffa000 : 0x552200); PE1.beam.material.opacity = I.pe1 ? 0.8 : 0.25;
+  PE2.led.material.color.set(I.pe2 ? 0xffa000 : 0x552200); PE2.beam.material.opacity = I.pe2 ? 0.8 : 0.25;
+  colLed.material.color.set(I.warna ? 0x40ff70 : 0x552200);
+  colSpot.material.opacity = prods.some(p => onBelt(p) && Math.abs(p.x - X_COL) < PW / 2) ? 0.85 : 0;
+  if (!selected) {
+    const glow = (m, on, c) => { m.material.emissive.set(on ? c : 0x000000); m.material.emissiveIntensity = on ? 1 : 0; };
+    glow(lamps[0], Q.hijau, 0x30ff60); glow(lamps[1], Q.kuning, 0xffd040); glow(lamps[2], Q.merah, 0xff3020);
+    for (const m of leds) glow(m, Q.led, phy.pi.t >= 0 || Q.trig ? 0xffffff : 0x9a9a90);
+    glow(reedB, I.rB, 0xff4020); glow(reedF, I.rF, 0xff4020);
+  }
+}
+
+// ---------- kendali ----------
+const $ = id => document.getElementById(id);
+const press = k => { btnState[k] = 0.15; };
+$("b-start").addEventListener("click", () => press("start"));
+$("b-stop").addEventListener("click", () => press("stop"));
+$("b-reset").addEventListener("click", () => press("reset"));
+$("b-es").addEventListener("click", () => { btnState.es = !btnState.es; $("b-es").setAttribute("aria-pressed", btnState.es); $("b-es").textContent = btnState.es ? "E-stop terkunci" : "E-stop"; });
+const sliders = [["s-v", "v", "o-v", v => `${num(v, 2)} m/s`], ["s-r", "rate", "o-r", v => `${v}/menit`], ["s-d", "dev", "o-d", v => `${num(v * 100, 0)}%`], ["s-m", "mass", "o-m", v => `${num(v, 1)} kg`]];
+for (const [id, k, o, f] of sliders) { const el = $(id); const u = () => { ui[k] = +el.value; $(o).textContent = f(ui[k]); }; el.addEventListener("input", u); u(); }
+$("c-timer").addEventListener("change", e => { ui.timer = e.target.checked; say(ui.timer ? "Mode pembanding: posisi ditebak dari waktu" : "Mode normal: posisi dari enkoder"); });
+
+function setMode(mo) {
+  mode = mo;
+  for (const key of ["k", "s"]) { tabs[key].setAttribute("aria-selected", key === mo); panes[key].hidden = key !== mo; panes[key].style.display = key === mo ? "flex" : ""; }
+  if (mo === "s") { explode = 0; $("explode").value = 0; applyExplode(); select(null); }
+  $("hint").textContent = mo === "s" ? "Simulasi berjalan. Tombol Inspeksi dan Reject mendekatkan kamera ke titik kerja." : "Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.";
+}
+tabs.k.addEventListener("click", () => setMode("k")); tabs.s.addEventListener("click", () => setMode("s"));
+[tabs.k, tabs.s].forEach(t => t.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = t === tabs.k ? tabs.s : tabs.k; n.focus(); n.click(); } }));
+
+// ---------- telemetri ----------
+const IO = [
+  ["DI", "%I0.0", "Enkoder fase A (HSC1)", () => I.encA], ["DI", "%I0.1", "Enkoder fase B (HSC1)", () => I.encB],
+  ["DI", "%I0.2", "PE1 fotoelektrik masuk inspeksi", () => I.pe1], ["DI", "%I0.3", "Sensor warna: warna sesuai", () => I.warna],
+  ["DI", "%I0.4", "Pi: hasil siap (strobe)", () => I.piRdy], ["DI", "%I0.5", "Pi: produk OK", () => I.piOk],
+  ["DI", "%I0.6", "E-stop (NC, kontak kedua)", () => I.es], ["DI", "%I0.7", "PE2 fotoelektrik ujung (ke bin normal)", () => I.pe2],
+  ["DI", "%I1.0", "Reed silinder mundur", () => I.rB], ["DI", "%I1.1", "Reed silinder maju", () => I.rF],
+  ["DI", "%I1.2", "Tombol Start (NO)", () => I.start], ["DI", "%I1.3", "Tombol Stop (NC)", () => I.stop],
+  ["DI", "%I1.4", "Tombol Reset (NO)", () => I.reset], ["DI", "%I1.5", "Selector Auto (1) / Manual (0)", () => I.auto],
+  ["DO", "%Q0.0", "Motor jalan (relay MY2N → driver PWM)", () => Q.motor], ["DO", "%Q0.1", "Katup 5/2 silinder reject", () => Q.valve],
+  ["DO", "%Q0.2", "Pemicu kamera (ke Pi lewat optocoupler)", () => Q.trig], ["DO", "%Q0.3", "Lampu hijau: jalan", () => Q.hijau],
+  ["DO", "%Q0.4", "Lampu kuning: siaga", () => Q.kuning], ["DO", "%Q0.5", "Lampu merah: gangguan (kedip)", () => Q.merah],
+  ["DO", "%Q0.6", "Lampu LED penerang kamera", () => Q.led], ["DO", "%Q0.7 … %Q1.1", "Cadangan (3)", () => false],
+  ["AI", "%IW64", "AI0 cadangan (opsi sensor tekanan 0–10 V)", () => null], ["AI", "%IW66", "AI1 cadangan", () => null],
+  ["HSC", "%ID1000", "HSC1 hitungan enkoder (A/B ×4)", () => I.cnt],
+];
+const iot = $("iot"); let sec = "";
+const SEC = { DI: "Masukan digital 24 VDC (14)", DO: "Keluaran relay (10)", AI: "Masukan analog 0–10 V (2)", HSC: "Penghitung cepat" };
+IO.forEach(([g, a, n], i) => {
+  if (g !== sec) { sec = g; iot.insertAdjacentHTML("beforeend", `<tr class="sec"><th colspan="3" scope="colgroup">${SEC[g]}</th></tr>`); }
+  iot.insertAdjacentHTML("beforeend", `<tr id="io${i}"><td class="m">${a}</td><td>${n}</td><td class="m val" id="iv${i}"></td></tr>`);
+});
+const ioRows = IO.map((_, i) => [$("io" + i), $("iv" + i)]);
+const qt = $("qt"), logEl = $("log");
+const yn = (v, a, b) => v === null ? "…" : v ? `<span class="state-ok">${a}</span>` : `<span class="state-hit">${b}</span>`;
+function tele() {
+  const onb = prods.filter(onBelt).length, load = onb * ui.mass;
+  const F = 0.35 * (load + 3) * 9.81 * 1.3, P = phy.v > 0.001 ? F * phy.v / 0.65 + 6 : 0;
+  $("t-v").textContent = `${num(plc.vMeas, 2)} m/s`;
+  $("t-c").textContent = I.cnt.toLocaleString("id-ID");
+  $("t-n").textContent = plc.nNorm; $("t-r").textContent = plc.nRej;
+  $("t-e").innerHTML = truth.err ? `<span class="state-hit">${truth.err}</span>` : "0";
+  $("t-q").textContent = plc.queue.length;
+  $("t-w").innerHTML = `${num(load, 1)} kg <small class="${load > 20 ? "state-hit" : ""}">/ 20</small>`;
+  $("t-p").textContent = `${num(P, 0)} W · ${num(P / 24, 1)} A`;
+  $("t-s").innerHTML = plc.fault ? `<span class="state-hit">E-stop / gangguan: lepas E-stop lalu Reset</span>` : plc.run
+    ? `<span class="state-ok">Jalan</span>, jeda produk ${num(phy.v * 60 / ui.rate * 1000, 0)} mm, lead silinder ${num((ui.timer ? V_CAL : plc.vMeas) * T_HIT * 1000, 0)} mm`
+    : `<span class="state-warn">Berhenti</span>, tekan Start`;
+  const pos = e => ui.timer ? plc.timerPos - e.t0 : (I.cnt - e.c0) * MM_CNT / 1000;
+  qt.innerHTML = plc.queue.slice(-6).reverse().map(e => `<tr><td class="m">${e.n}</td><td class="m">${num(pos(e) * 1000, 0)} mm</td>
+    <td>${yn(e.warna, "sesuai", "salah")}</td><td>${yn(e.cam, "OK", "NG")}</td><td>${e.warna === null || (e.cam === null && !e.ng) ? "menunggu" : e.ng ? `<span class="state-hit">reject${e.fired ? " ✓" : ""}</span>` : `<span class="state-ok">normal</span>`}</td></tr>`).join("")
+    || `<tr><td colspan="5" class="note">Antrian kosong</td></tr>`;
+  IO.forEach(([g, , , f], i) => {
+    const v = f(), [row, cell] = ioRows[i];
+    cell.textContent = v === null ? "0" : typeof v === "number" ? v.toLocaleString("id-ID") : v ? "1" : "0";
+    row.classList.toggle("on", v === true);
+  });
+  logEl.innerHTML = log.map(s => `<li>${s}</li>`).join("");
+}
+
+// ---------- loop ----------
+function resize() {
+  const r = stage.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+press("start");
+for (let i = 0; i < 600; i++) step(0.05); // pemanasan 30 s supaya belt sudah berisi produk
+setView("iso"); select(null); draw(); tele();
+let last = performance.now(), tAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  step(dt); draw();
+  controls.update(); renderer.render(scene, camera);
+  if ((tAcc += dt) > 0.12) { tAcc = 0; if (mode === "s") tele(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
