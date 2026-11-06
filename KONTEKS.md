@@ -1,7 +1,8 @@
 # robot-dosen — permintaan dosen: 3 stasiun PLC + 3 robot
 
 Sumber: `spesifikasi/PLC_specs.docx`, `spesifikasi/robotic_arm_specs.docx` (salinan dari Downloads, 6 Nov 2026).
-Status: **analisis awal**, belum ada keputusan lingkup/anggaran/tenggat.
+Repo: https://github.com/nothinx/robot-dosen (public, disetujui user 6 Nov 2026) · Pages: https://nothinx.github.io/robot-dosen/
+(`visual/r1-beroda.html`, model 3D + simulasi R1). Status: **analisis awal**, belum ada keputusan lingkup/anggaran/tenggat.
 
 Gaya teksnya ("Memiliki …", nilai ±) mirip **spesifikasi teknis pengadaan/hibah alat lab**, bukan dokumen desain.
 Jadi pertanyaan pertama: dosen minta kita **membangun** alatnya, atau **menyusun usulan/RAB/desain** saja?
