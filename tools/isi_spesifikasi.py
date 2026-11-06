@@ -1,11 +1,10 @@
 """Tulis "Spesifikasi kami" + tabel RAB R1 & R2 ke spesifikasi/robotic_arm_specs.docx.
 
-Selalu mulai dari docx asli dosen (commit 08968cb), lalu:
-    git --no-pager show 08968cb:spesifikasi/robotic_arm_specs.docx > spesifikasi/robotic_arm_specs.docx
+Skrip selalu mulai dari docx asli dosen (dibaca dari commit 08968cb), jadi aman dijalankan ulang:
     python tools/isi_spesifikasi.py
-RAB dibaca dari daftar PARTS di visual/r1-beroda.html & visual/r2-biped.html supaya halaman dan docx selalu sama.
+Usulan R1 & R2 ada di skrip ini; alat lain di tools/usul/<id>.json. RAB dibaca dari daftar PARTS di visual/r1-beroda.html & visual/r2-biped.html supaya halaman dan docx selalu sama.
 """
-import copy, re, pathlib
+import copy, io, json, re, pathlib, subprocess
 import docx
 from docx.shared import RGBColor, Pt
 from docx.oxml.ns import qn
@@ -13,7 +12,7 @@ from docx.oxml import OxmlElement
 from docx.opc.constants import RELATIONSHIP_TYPE as RT
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-SRC = ROOT / "spesifikasi" / "robotic_arm_specs.docx"
+ASLI = "08968cb"
 BIRU = RGBColor(0x1F, 0x4E, 0x79)
 T = "https://www.tokopedia.com/"
 
@@ -73,16 +72,14 @@ USUL_R2 = {
         "Kamera stereoskopik: modul USB dua lensa 2560 × 720, 30 fps, kedua lensa tersinkron dalam satu frame."],
 }
 
-ROBOT = [
-    ("Robot beroda", USUL_R1, "r1-beroda.html", "Robot beroda"),
-    ("Robot berkaki", USUL_R2, "r2-biped.html", "Robot berkaki"),
+ALAT = [
+    ("robotic_arm_specs.docx", "Robot beroda", USUL_R1, "r1-beroda.html", "Robot beroda"),
+    ("robotic_arm_specs.docx", "Robot berkaki", USUL_R2, "r2-biped.html", "Robot berkaki"),
 ]
 
 def rp(n): return "Rp" + f"{n:,}".replace(",", ".")
 
-d = docx.Document(SRC)
-P = d.paragraphs
-anchor_ref = None
+anchor_ref = d = P = None
 def sisip_setelah(anchor_el, teks, label):
     """Paragraf bullet level-2 (numId sama dengan anchor) berwarna biru."""
     src = anchor_ref._p  # paragraf dosen asli, sumber numPr
@@ -154,6 +151,14 @@ def isi_robot(judul_dosen, USUL, html, nama):
         for c, w in zip(row.cells, lebar): c.width = docx.shared.Twips(w)
     return total
 
-for r in ROBOT:
-    print(r[3], rp(isi_robot(*r)))
-d.save(SRC)
+for f in sorted((ROOT / "tools" / "usul").glob("*.json")):
+    u = json.loads(f.read_text(encoding="utf-8"))
+    ALAT.append((u["docx"], u["judul_dosen"], {int(k): v for k, v in u["usul"].items()}, u["html"], u["nama"]))
+
+for berkas in dict.fromkeys(a[0] for a in ALAT):
+    asli = subprocess.run(["git", "show", f"{ASLI}:spesifikasi/{berkas}"], cwd=ROOT, capture_output=True, check=True).stdout
+    d = docx.Document(io.BytesIO(asli)); P = d.paragraphs
+    for a in ALAT:
+        if a[0] == berkas:
+            print(a[4], rp(isi_robot(*a[1:])))
+    d.save(ROOT / "spesifikasi" / berkas)
