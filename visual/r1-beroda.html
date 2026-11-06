@@ -1,3 +1,8 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Model 3D dan simulasi kemudi robot beroda R1: komponen usulan, spesifikasi, dan harga.">
 <title>R1 Robot Beroda</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
@@ -25,7 +30,10 @@
   --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
   --ok: #4cc38a; --warn: #f87171; --scene: #12191e; --floor: #1e272d; color-scheme: dark;
 }
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
 html, body { height: 100%; overflow-x: clip; }
+body { margin: 0; }
 body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
 .app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
 .stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
