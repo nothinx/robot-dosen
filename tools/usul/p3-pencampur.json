@@ -1,0 +1,40 @@
+{
+  "docx": "PLC_specs.docx",
+  "judul_dosen": "Tangki pencampur",
+  "nama": "Tangki pencampur",
+  "html": "p3-pencampur.html",
+  "usul": {
+    "1": [
+      "Dua tangki inlet A dan B dari panci stainless 304 Ø25 × 25 cm (penuh bibir ±12 L), diisi operator 10 L. Keluaran di samping bawah lewat bulkhead SS304 1/2 inci (tanpa las), sisa tak terkuras ±1 L.",
+      "Diletakkan di tingkat atas rak sehingga mengalir gravitasi ke tangki utama: dasar inlet 8 cm di atas bibir tangki utama."
+    ],
+    "2": [
+      "Tangki utama panci stainless 304 Ø30 × 30 cm (penuh bibir ±21 L, 0,71 L per cm). Volume kerja per batch 16 L (8 L dari A + 8 L dari B, tinggi 22,6 cm), bukan 2 × 10 L: 20 L akan penuh sampai bibir tanpa ruang riak pengaduk.",
+      "Takaran diatur waktu buka katup (bawaan 85 s ≈ 8,1 L, dikalibrasi sekali) dan dibatasi sensor level atas. Katup pembuangan solenoid 3/4 inci di dasar, menguras 16 L ±1 menit ke ember. Pengaduk propeller SS304 Ø100 mm."
+    ],
+    "3": [
+      "Diubah ke 24 VDC: katup solenoid stainless kerja langsung (direct-acting) 2S-160-15 1/2 inci, normally closed, tekanan kerja 0–10 bar.",
+      "Alasan 24 V: semua aktuator, lampu, dan sensor stasiun PLC memakai satu catu 24 V (standar I/O PLC); 12 V hanya menambah catu kedua. Alasan kerja langsung: aliran inlet hanya gravitasi (beda tekanan 0,01–0,03 bar), katup pilot butuh ±0,3 bar dan tidak akan membuka."
+    ],
+    "4": [
+      "Tetap 24 VDC: gearmotor JGB37-555 24 V 167 rpm 15 W dengan bracket dan kontrol kecepatan PWM, as + baling propeller SS304 Ø100 mm panjang 500 mm, kopling fleksibel, bearing KP000 di rak atas.",
+      "Daya aduk air 16 L di 167 rpm < 1 W, jadi motor 15 W sudah berlebih; arus ±0,6 A cukup langsung dari keluaran relay PLC (maks 2 A) dengan dioda flyback."
+    ],
+    "5": [
+      "Tiga float switch stainless tipe L (pasang samping): LSH level atas 25 cm (17,7 L) dan LSL level bawah 7 cm (4,9 L) ke masukan PLC, ditambah LSLL 7 cm yang dipasang seri di masukan SSR pemanas sebagai interlock anti dry-run perangkat keras."
+    ],
+    "6": [
+      "Elemen pemanas celup 1500 W 220 VAC drat 1 inci (pipa stainless Ø8 mm, panjang 20 cm), dipasang horizontal 3 cm dari dasar. Hitungan: 16 L × 4,186 kJ/kg·K × 33 K = 2,2 MJ, ±26 menit dari 27 ke 60 °C; menahan 60 °C butuh ±90 W.",
+      "Dinyalakan SSR 40 A dengan kendali PI proporsional waktu dari PLC. Pengaman: MCB 10 A sendiri di belakang RCBO 30 mA, relay K1 yang dijatuhkan E-stop, interlock level bawah + motor jalan, thermostat KSD301 90 °C reset manual.",
+      "Sensor suhu PT100 drat 1/2 inci + transmitter 0–10 V (0–100 °C, ±0,2 °C) langsung ke masukan analog PLC; DS18B20 tidak dipakai karena sinyal digitalnya tidak bisa dibaca PLC tanpa modul tambahan."
+    ],
+    "7": [
+      "Semua bagian basah stainless 304: panci, bulkhead, nepel, katup, as dan baling pengaduk, probe PT100, float switch. Rangka rak stainless 4 tingkat 80 × 50 × 120 cm (beban 300 kg).",
+      "Tangki dari panci dapur yang dilubangi hole saw dan dipasangi bulkhead berseal karet, jadi tidak perlu bengkel las; rangka, tangki, dan selubung pemanas diikat ke grounding."
+    ],
+    "8": [
+      "Panel box 30 × 40 × 20 cm: PLC Siemens S7-1200 CPU 1214C AC/DC/RLY (sama untuk P1, P2, P3), Mean Well LRS-100-24, RCBO 16 A 30 mA, MCB 4 A dan 10 A, SSR + heatsink, relay K1, terminal block, rel DIN, kabel duct.",
+      "Pintu: tombol START, STOP, RESET, selector otomatis/manual, emergency stop, lampu JALAN/PEMANAS/ALARM. I/O terpakai 7 DI, 8 DO, 1 AI (AI kedua cadangan untuk sensor level analog). HMI tidak diminta, bisa ditambah sebagai opsi."
+    ]
+  }
+}

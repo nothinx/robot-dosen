@@ -1,0 +1,823 @@
+<!doctype html>
+<html lang="id">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Model 3D dan simulasi batch tangki pencampur P3: dua tangki inlet, tangki utama berpemanas, PLC S7-1200, komponen usulan, dan harga.">
+<title>P3 Tangki Pencampur</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* design · layar aplikasi (visualisasi teknik) · dial E1/R1/M1 · tanda tangan: model 3D + tabel I/O PLC hidup ·
+   font Plex Sans Condensed (judul), Plex Sans (isi), Plex Mono (angka) karena dunia lembar data & gambar teknik */
+/* Layout: kanvas 3D mengisi kiri, panel kerja 380px di kanan; di HP kanvas di atas, panel di bawah. */
+:root {
+  --bg: #eef1f2; --panel: #ffffff; --fg: #16202a; --muted: #55626e; --line: #d3d9de;
+  --accent: #b54708; --accent-fg: #ffffff; --accent-soft: #fbeee4;
+  --ok: #1e7a46; --caution: #8a5a00; --warn: #b42318; --scene: #dde3e7; --floor: #c9d1d6; --water: #2f6fb0;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+    --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+    --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; --water: #5aa2e6; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1418; --panel: #161d22; --fg: #e6ecef; --muted: #9aa8b2; --line: #2a343b;
+  --accent: #f59e4b; --accent-fg: #1a0e02; --accent-soft: #2b2016;
+  --ok: #4cc38a; --caution: #e3b341; --warn: #f87171; --scene: #12191e; --floor: #1e272d; --water: #5aa2e6; color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; overflow-x: clip; }
+body { margin: 0; }
+body { background: var(--bg); color: var(--fg); font-family: var(--f-body); font-size: 14px; line-height: 1.5; }
+.app { display: grid; grid-template-columns: minmax(0, 1fr) 380px; height: 100%; }
+.stage { position: relative; min-width: 0; min-height: 0; background: var(--scene); }
+.stage canvas { display: block; width: 100%; height: 100%; touch-action: none; }
+.views { position: absolute; top: 12px; left: 12px; display: flex; gap: 6px; flex-wrap: wrap; }
+.hint { position: absolute; left: 12px; bottom: 10px; font-size: 12px; color: var(--muted); pointer-events: none; }
+.panel { background: var(--panel); border-left: 1px solid var(--line); overflow-y: auto; min-width: 0;
+  padding-block: 18px 24px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: flex; flex-direction: column; gap: 16px; }
+h1 { font-family: var(--f-display); font-weight: 600; font-size: 26px; line-height: 1.1; margin: 0; text-wrap: balance; }
+h2 { font-family: var(--f-display); font-weight: 600; font-size: 18px; margin: 0; }
+h3 { font-size: 13px; font-weight: 600; margin: 0; color: var(--muted); }
+.sub { color: var(--muted); margin: 4px 0 0; }
+.total { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; padding: 10px 12px;
+  background: var(--accent-soft); border-radius: 6px; }
+.total b { font-family: var(--f-mono); font-size: 18px; font-weight: 500; font-variant-numeric: tabular-nums; }
+.seg { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: 8px; padding: 3px; gap: 3px; }
+.seg.s4 { grid-template-columns: repeat(4, 1fr); }
+.seg button { min-height: 44px; border: 0; border-radius: 6px; background: transparent; color: var(--fg); font: 600 14px var(--f-body); cursor: pointer; }
+.seg button[aria-selected="true"], .seg button[aria-pressed="true"] { background: var(--fg); color: var(--panel); }
+button, a { -webkit-tap-highlight-color: transparent; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
+  color: var(--fg); font: 500 13px var(--f-body); cursor: pointer; }
+.btn:hover { border-color: var(--muted); }
+.btn[aria-pressed="true"] { background: var(--fg); color: var(--panel); border-color: var(--fg); }
+.btn.go { border-color: var(--ok); color: var(--ok); font-weight: 600; }
+.btn.stop { border-color: var(--warn); color: var(--warn); font-weight: 600; }
+.btn.es { background: var(--warn); border-color: var(--warn); color: #fff; font-weight: 600; }
+.btn.es[aria-pressed="true"] { background: var(--panel); color: var(--warn); }
+.views .btn { min-height: 36px; background: var(--panel); }
+label.row { display: flex; align-items: center; gap: 10px; }
+label.row span { min-width: 112px; }
+label.row output { font-family: var(--f-mono); font-size: 13px; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+input[type=range] { flex: 1; min-width: 0; accent-color: var(--accent); min-height: 32px; }
+.list { display: flex; flex-direction: column; border-top: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px 10px; align-items: baseline; text-align: left;
+  min-height: 44px; padding: 8px 6px; border: 0; border-bottom: 1px solid var(--line); background: transparent;
+  color: var(--fg); font: inherit; cursor: pointer; }
+.item:hover { background: var(--bg); }
+.item[aria-current="true"] { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .n { font-weight: 500; min-width: 0; }
+.item .p { font-family: var(--f-mono); font-size: 13px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.item .q { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.item .off { color: var(--muted); }
+.detail { border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
+.detail ul { margin: 0; padding-left: 18px; }
+.detail li + li { margin-top: 3px; }
+.detail a { color: var(--accent); font-weight: 600; }
+.note { color: var(--muted); font-size: 12.5px; margin: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.cell { background: var(--panel); padding: 8px 10px; min-width: 0; }
+.cell span { display: block; color: var(--muted); font-size: 12px; }
+.cell b { font-family: var(--f-mono); font-weight: 500; font-size: 16px; font-variant-numeric: tabular-nums; }
+.cell.wide { grid-column: 1 / -1; }
+.state-ok { color: var(--ok); } .state-hit { color: var(--warn); } .state-warn { color: var(--caution); }
+.tools { display: flex; gap: 8px; flex-wrap: wrap; }
+.tools .btn { flex: 1 1 auto; }
+.err { position: absolute; inset: 0; display: grid; place-items: center; padding: 24px; text-align: center; color: var(--fg); }
+.sub a { color: var(--accent); font-weight: 600; }
+.status { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+.status b { font-family: var(--f-display); font-size: 20px; font-weight: 600; }
+.status .t { font-family: var(--f-mono); color: var(--muted); margin-left: 8px; font-variant-numeric: tabular-nums; }
+.status p { margin: 2px 0 0; font-size: 13px; }
+.alarm { color: var(--warn); font-weight: 600; }
+.chart { width: 100%; height: 140px; display: block; border: 1px solid var(--line); border-radius: 8px; }
+.legend { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 4px; }
+.legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 5px; }
+.io { width: 100%; border-collapse: collapse; font-size: 12px; }
+.io th, .io td { border-bottom: 1px solid var(--line); padding: 4px 4px; text-align: left; vertical-align: top; }
+.io td:first-child, .io td:last-child { font-family: var(--f-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.io td small { color: var(--muted); display: block; }
+.io .on { color: var(--ok); font-weight: 600; }
+@media (max-width: 820px) {
+  html, body { height: auto; }
+  .app { grid-template-columns: 1fr; height: auto; }
+  .stage { height: 58vh; min-height: 320px; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); overflow: visible; }
+}
+</style>
+
+<div class="app">
+  <div class="stage" id="stage">
+    <div class="views" role="group" aria-label="Sudut pandang">
+      <button class="btn" data-view="iso">Isometrik</button>
+      <button class="btn" data-view="front">Depan</button>
+      <button class="btn" data-view="side">Samping</button>
+      <button class="btn" data-view="top">Atas</button>
+      <button class="btn" data-view="panel">Panel</button>
+    </div>
+    <p class="hint" id="hint">Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.</p>
+  </div>
+
+  <aside class="panel">
+    <header>
+      <h1>P3 Tangki Pencampur</h1>
+      <nav class="sub"><a href="../index.html">← Semua alat</a></nav>
+      <p class="sub">Dua tangki inlet 10 L mengalir gravitasi ke tangki utama 20 L berpengaduk dan berpemanas, dikendalikan PLC S7-1200. Usulan spesifikasi untuk permintaan dosen, harga Tokopedia per 7 Nov 2026.</p>
+    </header>
+    <div class="total"><span>Perkiraan RAB, belum ongkir</span><b id="total">Rp0</b></div>
+
+    <div class="seg" role="tablist" aria-label="Mode">
+      <button role="tab" id="tab-k" aria-selected="true" aria-controls="pane-k">Komponen</button>
+      <button role="tab" id="tab-s" aria-selected="false" aria-controls="pane-s">Simulasi</button>
+    </div>
+
+    <section id="pane-k" role="tabpanel" aria-labelledby="tab-k" style="display:flex;flex-direction:column;gap:14px">
+      <label class="row" for="explode">Urai <input type="range" id="explode" min="0" max="1" step="0.01" value="0"></label>
+      <div class="detail" id="detail" aria-live="polite"></div>
+      <div class="list" id="list"></div>
+      <p class="note">Panci & rak adalah barang dapur stainless 304 yang dilubangi hole saw dan dipasangi bulkhead, bukan tangki fabrikasi las:
+        harga fabrikasi = estimasi alat & fitting saja, belum jasa. Ukuran ulir, varian, dan jarak antartingkat rak dicek saat pesan.</p>
+    </section>
+
+    <section id="pane-s" role="tabpanel" aria-labelledby="tab-s" hidden style="flex-direction:column;gap:14px">
+      <div class="status" aria-live="polite"><b id="s-step">Siap</b><span class="t" id="s-time">00:00</span><p id="s-msg">Tekan START untuk mulai satu batch.</p></div>
+      <div class="tools" role="group" aria-label="Tombol panel">
+        <button class="btn go" id="b-start">START</button>
+        <button class="btn stop" id="b-stop">STOP</button>
+        <button class="btn" id="b-reset">RESET</button>
+        <button class="btn es" id="b-es" aria-pressed="false">E-stop</button>
+      </div>
+      <div class="seg" role="group" aria-label="Selector mode">
+        <button id="m-auto" aria-pressed="true">Otomatis</button>
+        <button id="m-man" aria-pressed="false">Manual (langkah)</button>
+      </div>
+      <label class="row" for="sp"><span>Setpoint suhu</span><input type="range" id="sp" min="40" max="80" step="1" value="60"><output id="o-sp">60 °C</output></label>
+      <label class="row" for="hold"><span>Waktu tahan</span><input type="range" id="hold" min="1" max="20" step="1" value="5"><output id="o-hold">5 mnt</output></label>
+      <label class="row" for="ta"><span>Buka katup A</span><input type="range" id="ta" min="20" max="150" step="5" value="85"><output id="o-ta">85 s</output></label>
+      <label class="row" for="tb"><span>Buka katup B</span><input type="range" id="tb" min="20" max="150" step="5" value="85"><output id="o-tb">85 s</output></label>
+      <div><h3>Kendali pemanas</h3>
+        <div class="seg" role="group" aria-label="Kendali pemanas" style="margin-top:6px">
+          <button id="c-pi" aria-pressed="true">PI (SSR proporsional)</button>
+          <button id="c-hy" aria-pressed="false">Histeresis ±0,5 °C</button>
+        </div></div>
+      <div><h3>Pengali waktu</h3>
+        <div class="seg s4" role="group" aria-label="Pengali waktu" id="speed" style="margin-top:6px">
+          <button data-x="1" aria-pressed="false">1×</button><button data-x="10" aria-pressed="false">10×</button>
+          <button data-x="30" aria-pressed="true">30×</button><button data-x="60" aria-pressed="false">60×</button>
+        </div></div>
+      <div class="tools">
+        <button class="btn" id="b-fill">Operator: isi A & B 10 L, kosongkan ember</button>
+      </div>
+      <div><h3>Gangguan (uji pengaman)</h3>
+        <div class="tools" style="margin-top:6px">
+          <button class="btn" id="f-leak" aria-pressed="false">Bocor di tangki utama</button>
+          <button class="btn" id="f-ssr" aria-pressed="false">SSR macet ON</button>
+          <button class="btn" id="f-ksd" hidden>Reset KSD301 (tangan)</button>
+        </div></div>
+      <div class="grid2">
+        <div class="cell"><span>Suhu (sensor PT100)</span><b id="t-T">-</b></div>
+        <div class="cell"><span>Volume tangki utama</span><b id="t-V">-</b></div>
+        <div class="cell"><span>Daya pemanas</span><b id="t-P">-</b></div>
+        <div class="cell"><span>Rugi panas ke udara</span><b id="t-L">-</b></div>
+        <div class="cell"><span>Tangki A / B</span><b id="t-AB">-</b></div>
+        <div class="cell"><span>Komposisi A : B</span><b id="t-mix">-</b></div>
+        <div class="cell"><span>Energi batch</span><b id="t-E">-</b></div>
+        <div class="cell"><span>Ember buangan</span><b id="t-bk">-</b></div>
+        <div class="cell wide"><span>Pengaman</span><b id="t-safe" style="font-size:13px">-</b></div>
+      </div>
+      <div>
+        <canvas class="chart" id="chart" role="img" aria-label="Grafik suhu dan volume terhadap waktu"></canvas>
+        <div class="legend"><span><i style="background:var(--accent)"></i>Suhu °C</span><span><i style="background:var(--muted)"></i>Setpoint</span><span><i style="background:var(--water)"></i>Volume L (skala kanan)</span></div>
+      </div>
+      <table class="io" aria-label="Tabel I/O PLC">
+        <thead><tr><th scope="col">Alamat</th><th scope="col">Tag / fungsi</th><th scope="col">Nilai</th></tr></thead>
+        <tbody id="io"></tbody>
+      </table>
+      <p class="note">Model: neraca massa (aliran gravitasi lewat katup, Kv efektif 2,5 inlet dan 4 buang) dan neraca panas
+        (pemanas 1500 W dengan jeda elemen 25 s, rugi panas UA ±2,7 W/K ke udara 28 °C, air masuk 27 °C, tanpa penguapan).
+        PLC hanya tahu waktu buka katup dan sensor level, bukan volume. Angka untuk gambaran, bukan hasil uji.</p>
+    </section>
+  </aside>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+(() => {
+const T = "https://www.tokopedia.com/";
+const PARTS = [
+  { id: "plc", nama: "PLC Siemens S7-1200 CPU 1214C AC/DC/RLY", qty: 1, harga: 7650000, toko: "rajalistrikcibatu", url: T + "rajalistrikcibatu/plc-siemens-s7-1200-simatic-cpu-1214c-ac-dc-relay-6es7214-1bg40-0xb0",
+    spek: ["6ES7214-1BG40-0XB0: catu 220 VAC, 14 DI 24 VDC, 10 DO relay 2 A, 2 AI 0–10 V", "Terpakai 7 DI, 8 DO, 1 AI; AI kedua cadangan untuk sensor level analog", "Ethernet PROFINET, diprogram dengan TIA Portal", "Sama untuk P1, P2, P3"] },
+  { id: "utama", nama: "Panci stainless 304 Ø30 × 30 cm (tangki utama)", qty: 1, harga: 299000, toko: "GRLIN Store Indonesia", url: T + "grlin-store-indonesia/grlin-panci-jumbo-stainless-steel-304-kapasitas-5l-10l-19l-33l-46l-67l-93l-panci-dandang-tebal-panci-bakso-stockpot-panci-kukus-panci-besar-1734324699476493866",
+    spek: ["Pilih varian 30*30: penuh bibir ±21 L, 0,71 L per cm tinggi", "Batch 16 L (8 + 8) = tinggi 22,6 cm, sisa 7 cm untuk riak pengaduk", "Dilubangi hole saw untuk buang, pemanas, PT100, 3 float switch", "Tutup dilubangi untuk poros pengaduk dan dua selang masuk"] },
+  { id: "inlet", nama: "Panci stainless 304 Ø25 × 25 cm (tangki inlet A & B)", qty: 2, harga: 249000, toko: "GRLIN Store Indonesia", url: T + "grlin-store-indonesia/grlin-panci-jumbo-stainless-steel-304-kapasitas-5l-10l-19l-33l-46l-67l-93l-panci-dandang-tebal-panci-bakso-stockpot-panci-kukus-panci-besar-1734324699476493866",
+    spek: ["Pilih varian 25*25: penuh bibir ±12 L, diisi 10 L (tinggi 20 cm)", "Keluaran di samping bawah, sisa tak terkuras ±1 L", "Diisi operator; takaran ke tangki utama diatur waktu buka katup, dibatasi level atas"] },
+  { id: "svin", nama: "Katup solenoid 2S-160-15 1/2 inci stainless 24 VDC NC", qty: 2, harga: 210000, toko: "Noxcure", url: T + "noxcure/solenoid-valve-1-2-inch-stainless-steel-ac220-dc24-nc-2s-160-15-1734331008139495212",
+    spek: ["Pilih varian DC24", "Kerja langsung (direct-acting), tekanan kerja 0–10 bar: tetap membuka pada aliran gravitasi, tidak seperti katup pilot", "Normally closed: listrik padam = katup menutup", "Badan stainless, cairan maks 90 °C"] },
+  { id: "svout", nama: "Katup solenoid 2S-200-20 3/4 inci stainless 24 VDC NC (buang)", qty: 1, harga: 220000, toko: "Noxcure", url: T + "noxcure/solenoid-valve-3-4-inch-stainless-steel-ac220-dc24-nc-2s-200-20-ac220",
+    spek: ["Pilih varian DC24", "Kerja langsung, lubang 20 mm: 16 L terkuras ±1 menit secara gravitasi", "Di bawah rak tingkat 3, keluaran lewat selang ke ember", "Alternatif motorized ball valve SS304 (±Rp1,3 jt, pre-order) bila cairan berserat"] },
+  { id: "motor", nama: "Motor gearbox JGB37-555 24 V 167 rpm + bracket + kontrol kecepatan", qty: 1, harga: 332250, toko: "ciptakarya3d", url: T + "ciptakarya3d/jgb37-555-motor-gear-logam-dc-12v-24v-torque-besar-daya-tinggi-15w-paket-555-dengan-bracket-kontrol-kecepatan-1729957289682109825-1737828603065107841",
+    spek: ["Pilih varian Paket 24V 167Rpm (harga varian dicek saat pesan)", "15 W, ±0,6 A: langsung dari keluaran relay PLC (maks 2 A) dengan dioda flyback", "Daya aduk air 16 L dengan baling Ø100 mm di 167 rpm < 1 W, jadi torsi motor berlebih jauh", "Kontrol kecepatan PWM bawaan untuk atur putaran manual"] },
+  { id: "impeller", nama: "Poros + baling propeller SS304 Ø100 mm, as 10 × 500 mm", qty: 1, harga: 294000, toko: "SWT Industrial", url: T + "swtindustrial/impeller-mixer-stainless-multi-variant-propeller-pbt-rushton-high-shear-anchor-paddle-helical-ribbon-disc-folding-1733487640069179118-1737355642807617262",
+    spek: ["Pilih varian PB101050", "Stainless 304 food grade", "Baling ±6 cm di atas dasar, tetap terendam di atas level bawah"] },
+  { id: "kopling", nama: "Kopling fleksibel 6 × 10 mm", qty: 1, harga: 14900, toko: "CENTI Store", url: T + "centi-store/flexible-coupling-6-10-mm-6-10mm",
+    spek: ["Poros motor 6 mm ke as pengaduk 10 mm", "Meredam ketidaklurusan; beban samping ditahan bearing"] },
+  { id: "bearing", nama: "Pillow block KP000 lubang 10 mm", qty: 1, harga: 16985, toko: "TNG.Industrial", url: T + "tngindustrial/kp000-pillow-block-kp-000-bearing-insert-10-mm-diameter",
+    spek: ["Di rak teratas, memegang as pengaduk supaya gearbox tidak menanggung beban samping"] },
+  { id: "float", nama: "Float switch stainless tipe L (pasang samping)", qty: 3, harga: 72000, toko: "HwThinker", url: T + "hwthinker/float-switch-stainless-steel-water-level-sensor-air-type-l-angle",
+    spek: ["LSH level atas 25 cm (17,7 L) dan LSL level bawah 7 cm (4,9 L) ke PLC", "LSLL 7 cm dipasang seri di masukan SSR: interlock anti dry-run perangkat keras", "Badan & pelampung SUS304, kontak maks 1 A, suhu sampai 125 °C, ulir ±10 mm"] },
+  { id: "heater", nama: "Elemen pemanas celup 1500 W 220 V, drat 1 inci, P 20 cm", qty: 1, harga: 229500, toko: "Bengkel Heater Thermocouple", url: T + "bengkelheaterthermocoupl/element-pemanas-air-immersion-heater-cromalogh-1inch-p20cm-1500-watt",
+    spek: ["Pipa stainless Ø8 mm, nepel kuningan 1\"; dibuat 2–3 hari kerja", "16 L dari 27 ke 60 °C: 16 × 4,186 × 33 = 2,2 MJ, ±27 menit (rugi panas 60–90 W)", "Arus 6,8 A: MCB 10 A sendiri di belakang RCBO 30 mA", "Horizontal 3 cm dari dasar, selalu di bawah LSL"] },
+  { id: "ssr", nama: "SSR Fotek SSR-40DA", qty: 1, harga: 43000, toko: "El PatronShop", url: T + "elpatronshop/fotek-solid-state-relay-ssr-40da-fotek-40-dc-to-ac",
+    spek: ["Masukan 3–32 VDC dari %Q0.4 lewat kontak LSLL, keluaran 220 VAC zero-cross", "40 A untuk beban 6,8 A, tetap dengan heatsink", "Dinyalakan proporsional waktu (jendela 2 s) oleh PI di PLC"] },
+  { id: "heatsink", nama: "Heatsink aluminium untuk SSR", qty: 1, harga: 28535, toko: "Rajacell", url: T + "rajacell/heatsink-base-aluminium-untuk-pendingin-ssr-fotek-10a-sampai-40a-putih",
+    spek: ["Rugi SSR ±1,2 V × 6,8 A ≈ 8 W"] },
+  { id: "relay", nama: "Relay Omron LY2N 24 VDC 10 A + soket (K1)", qty: 1, harga: 85000, toko: "YANJAYARAYA", url: T + "1213/relay-omron-ly2n-led-lampu-24vdc-soket-relay-8pin-10a-24vdc-omron-1-set-1730867747797108613",
+    spek: ["Koil dari 24 V lewat E-stop; dua kontak memutus L dan N pemanas", "E-stop tetap mematikan pemanas walau SSR rusak tersambung"] },
+  { id: "ksd", nama: "Thermostat KSD301 90 °C reset manual 10 A", qty: 1, harga: 69900, toko: "ELEKTERONG2", url: T + "elekterong/ksd301-ksd303-250v-10a-90c-95c-manual-reset-thermostat-thermal-control",
+    spek: ["Ditempel di dinding tangki dekat pemanas, seri di jalur fasa pemanas", "Pengaman lapis terakhir bila SSR macet ON atau elemen kering: putus di 90 °C, direset tangan"] },
+  { id: "pt100", nama: "Sensor PT100 berkepala, drat 1/2 inci NPT, probe 8 × 100 mm SS304", qty: 1, harga: 380500, toko: "K S E", url: T + "kse/thermocouple-head-pt100-1-2-8-100mm-drat-1-2-npt-suhu-400-c-material-ss-304-1731521253291951549",
+    spek: ["Probe masuk 10 cm dari dinding samping, 5,5 cm dari dasar", "Transmitter dipasang di dalam kepala sensor"] },
+  { id: "tt", nama: "Transmitter PT100 0–100 °C keluaran 0–10 V, 24 VDC", qty: 1, harga: 195000, toko: "Automa-88", url: T + "automa88/temperature-transmitter-pt100-0-100c-output-0-10v-dc-24v",
+    spek: ["Langsung ke AI0 PLC (%IW64): 0–10 V = 0–27648 = 0–100 °C", "Akurasi 0,2% FS = ±0,2 °C; resolusi AI 10 bit ±0,1 °C", "DS18B20 tidak dipakai: sinyal digital 1-Wire tidak bisa dibaca PLC tanpa modul tambahan"] },
+  { id: "bh12", nama: "Bulkhead tangki 1/2 inci SS304", qty: 3, harga: 87000, toko: "Hardware Store Batam", url: T + "hardware-store-batam/bulkhead-tangki-1-2-s-s-304",
+    spek: ["2 keluaran tangki inlet, 1 dudukan PT100", "Tanpa las: lubang hole saw + seal karet. Ulir BSP ke NPT disambung dengan seal tape"] },
+  { id: "bh34", nama: "Bulkhead tangki 3/4 inci SS304", qty: 1, harga: 110000, toko: "Hardware Store Batam", url: T + "hardware-store-batam/bulkhead-tangki-3-4-s-s-304",
+    spek: ["Keluaran kuras di dasar tangki utama, menembus rak tingkat 3"] },
+  { id: "bh1", nama: "Bulkhead tangki 1 inci SS304", qty: 1, harga: 160000, toko: "Hardware Store Batam", url: T + "hardware-store-batam/bulkhead-tangki-1-s-s-304",
+    spek: ["Dudukan elemen pemanas di dinding samping"] },
+  { id: "nepel12", nama: "Double nepel stainless 1/2 inci", qty: 2, harga: 4000, toko: "Jossindo Teknik", url: T + "jossindoteknik/double-nepel-stainless-1-2-double-nepel-1-2-stainless-1730336750763607703", nomesh: true,
+    spek: ["Bulkhead inlet ke katup solenoid"] },
+  { id: "nepel34", nama: "Double nepel stainless 304 3/4 inci", qty: 1, harga: 13700, toko: "Teknik Pratama", url: T + "teknikpratama/double-nepel-stainless-steel-304-3-4-inch", nomesh: true,
+    spek: ["Bulkhead buang ke katup buang"] },
+  { id: "hn12", nama: "Hose nepel stainless 304 1/2 inci", qty: 2, harga: 23500, toko: "Sumber Jaya Stainless", url: T + "sumberjayastainless/hose-nepel-stainless-304-uk-1-2-inch",
+    spek: ["Keluaran katup inlet ke selang"] },
+  { id: "hn34", nama: "Hose nepel stainless 304 3/4 inci", qty: 1, harga: 25000, toko: "Sumber Jaya Stainless", url: T + "sumberjayastainless/hose-nepel-drat-stainless-304-uk-3-4-inch-1731870243455403857",
+    spek: ["Keluaran katup buang ke selang"] },
+  { id: "selang12", nama: "Selang benang transparan 1/2 inci, per meter", qty: 2, harga: 5940, toko: "Mandiri Batu Tulis", url: T + "mandiribatutulis/selang-benang-serat-transparan-slang-air-taman-1-2-5-8-inch-per-1-meter-1730876148898760542",
+    spek: ["Katup inlet ke tangki utama, menembus rak teratas"] },
+  { id: "selang34", nama: "Selang benang 3/4 inci, per meter", qty: 2, harga: 6300, toko: "Toko HS Jakarta", url: T + "toko-hs-jakarta/selang-benang-3-4-inch-per-meter-selang-air-taman",
+    spek: ["Katup buang ke ember"] },
+  { id: "seal", nama: "Seal tape 1/2 inci 10 m isi 2", qty: 1, harga: 11305, toko: "DEKKSON", url: T + "dekkson-official-shop/dekkson-seal-tape-selotip-keran-1-2-inch-10-meter-sea-0-1x0-35x10m-2-pcs-1732862159380710545", nomesh: true,
+    spek: ["Semua sambungan ulir"] },
+  { id: "ember", nama: "Ember 20 L (penampung kuras)", qty: 1, harga: 25200, toko: "oji matrass", url: T + "oji-matrass/ember-putih-tahan-lama-anti-pecah-pk-uk20l-1735281524372309502-1735281595970848254",
+    spek: ["Menampung satu batch 16 L; atau selang langsung ke saluran lantai"] },
+  { id: "rak", nama: "Rak stainless 4 tingkat 80 × 50 × 120 cm", qty: 1, harga: 668000, toko: "SteelLife", url: T + "steellife/compact-steel-sus-304-rak-dapur-stainless-steel-rak-susun-rak-microwave-oven-rak-susun-serbaguna-1734629750757689250-1734629887470897058",
+    spek: ["Pilih varian 4T-80*50*120CM, beban total 300 kg", "Atas: tangki inlet + motor. Tingkat 3: tangki utama. Tingkat 2: panel", "Jarak antartingkat ±38 cm (cek saat datang); 4 lubang hole saw di rak", "Dasar inlet 8 cm di atas bibir tangki utama: cukup untuk aliran gravitasi"] },
+  { id: "psu", nama: "Power supply Mean Well LRS-100-24 (24 V 4,5 A)", qty: 1, harga: 220000, toko: "Riasarana", url: T + "riasarana/power-supply-mean-well-lrs-100-24",
+    spek: ["Normal: 1 katup + motor + lampu ±40 W; terburuk 3 katup + motor ±80 W", "Masukan PLC memakai catu sensor 24 V internal CPU (400 mA)"] },
+  { id: "box", nama: "Box panel 30 × 40 × 20 cm plat 1 mm", qty: 1, harga: 145200, toko: "Grand Lite Electric", url: T + "grandlite/box-panel-30x40x20-cm-indoor-plat-1mm",
+    spek: ["Dipasang mendatar di rak tingkat 2", "Pintu: 3 lampu, START, STOP, RESET, selector, E-stop", "Badan di-ground ke PE bersama rak dan tangki"] },
+  { id: "rcbo", nama: "RCBO Schneider Domae 1P+N 16 A 30 mA", qty: 1, harga: 335000, toko: "Lukim Star Electric", url: T + "lukim-star-electric/rcbo-slim-schneider-domae-6a-10a-16a-20a-25a-32a-1p-n-kurva-c-30ma-6ka-schneider-new-domae-1734441219935143353",
+    spek: ["Pilih varian 16A", "Saklar utama + pengaman arus bocor 30 mA: wajib untuk pemanas 220 V yang terendam air"] },
+  { id: "mcb", nama: "MCB Schneider Domae 1P", qty: 2, harga: 49900, toko: "Juragan Hardware", url: T + "archive-juraganghardware-1678580536/mcb-new-domae-1p-2a-4a-6a-10a-original-schneider-1-phase-6ka-1729805492947944869",
+    spek: ["Varian 10 A untuk pemanas, varian 4 A untuk PLC + PSU"] },
+  { id: "tombol", nama: "Push button 22 mm 1NO/1NC FORT", qty: 3, harga: 8700, toko: "Tunas Jaya Electric", url: T + "electrical7/push-button-22mm-1no-1nc-fort-merah",
+    spek: ["START hijau, STOP merah (pakai kontak NC), RESET biru", "Pilih warna per varian"] },
+  { id: "selector", nama: "Selector 2 posisi 22 mm XB2-ED21", qty: 1, harga: 12000, toko: "Iterno Elektrik", url: T + "iternoelektrik/selector-switch-22mm-xb2-ed21-1no-2-posisi-iterno",
+    spek: ["OTOMATIS / MANUAL (langkah demi langkah dengan START)"] },
+  { id: "estop", nama: "Emergency stop 22 mm LA38-11ZS", qty: 1, harga: 18500, toko: "DC Motor Shop", url: T + "dc-motor-shop/push-button-emergency-stop-self-locking-22mm-10a-upto-660vac-la38-11zs-1729505830049974647",
+    spek: ["Kontak NC memutus 24 V ke common keluaran aktuator dan koil K1 pemanas", "Tegangan setelah kontak dibaca PLC di %I0.4 (0 = darurat atau kabel putus)"] },
+  { id: "lampu", nama: "Pilot lamp LED 22 mm 24 VDC AD16-22DS", qty: 3, harga: 5500, toko: "Iterno Elektrik", url: T + "iternoelektrik/pilot-lamp-led-22mm-220vac-ad16-22ds-iterno-1738209145103942940",
+    spek: ["Hijau JALAN, kuning PEMANAS, merah ALARM", "Pilih varian 24 V per warna"] },
+  { id: "terminal", nama: "Terminal block TUK 3N 2,5 mm FORT", qty: 20, harga: 5000, toko: "AA Elec", url: T + "aaelec/terminal-block-uk-abu-abu-terminal-viking-tuk-3n-2-5mm-m3-fort",
+    spek: ["Sambungan kabel lapangan ke panel, termasuk terminal PE"] },
+  { id: "rel", nama: "Rel DIN aluminium 1 m", qty: 1, harga: 21300, toko: "Mega Listrik", url: T + "megalistrikid/rel-mcb-1-meter-din-rail-aluminium-1m-rel-omega-1-fungsi",
+    spek: ["Dua baris di pelat panel"] },
+  { id: "duct", nama: "Kabel duct 25 × 25 mm", qty: 2, harga: 8000, toko: "Kanglistrik28", url: T + "kanglistrik/kabel-duct-kabel-dak-25x25-mm-pvc-putih",
+    spek: ["Jalur kabel di dalam panel"] },
+  { id: "nyaf", nama: "Kabel NYAF 1,5 mm² 50 m", qty: 1, harga: 66666, toko: "M QUEEN", url: T + "mqueen9/kabel-nyaf-1-x-1-5-mm-kabel-tunggal-serabut-50-meter-hitam", nomesh: true,
+    spek: ["Pengawatan dalam panel, termasuk jalur pemanas 6,8 A"] },
+  { id: "kabel075", nama: "Kabel NYYHY 2 × 0,75 mm² 5 m", qty: 3, harga: 54585, toko: "Wilson Cables", url: T + "wilsoncables/nyyhy-2x0-75-mm2-kabel-tembaga-serabut-wilson-cables-5-meter", nomesh: true,
+    spek: ["Panel ke katup, motor, float switch, transmitter (±15 m)"] },
+  { id: "kabel15", nama: "Kabel NYYHY 3 × 1,5 mm², per meter", qty: 3, harga: 21000, toko: "Harapan Elektrik", url: T + "harapan-elektrik/kabel-nyyhy-3x1-5-mm-serabut-merk-supreme-eceran", nomesh: true,
+    spek: ["Kabel daya masuk (L, N, PE) dan kabel pemanas"] },
+  { id: "steker", nama: "Steker arde Broco 16 A", qty: 1, harga: 13500, toko: "Amaritista", url: T + "amaritista/steker-arde-broco-white-colokan-bahan-kuningan-16a-250v-sni", nomesh: true,
+    spek: ["Stopkontak lab wajib ber-ground"] },
+  { id: "gland", nama: "Cable gland PG9", qty: 12, harga: 900, toko: "Iterno Power", url: T + "iternoteknik/cable-gland-kabel-gland-pg9-pg-9-4-8mm-iterno-1736091108918003515-1736091122500339515", nomesh: true,
+    spek: ["Kabel masuk panel dari bawah"] },
+  { id: "dioda", nama: "Dioda 1N4007 isi 10", qty: 1, harga: 2000, toko: "HanabiElectro", url: T + "hanabicctv/10pcs-dioda-1a-in4007-in-4007-diode-mic-sep-1000v-original-1729811939879650845", nomesh: true,
+    spek: ["Flyback di 3 koil solenoid, koil K1, dan motor: memperpanjang umur kontak relay PLC"] },
+  { id: "lan", nama: "Kabel LAN Cat6 3 m Vention", qty: 1, harga: 16000, toko: "idosthing", url: T + "idosthing/vention-kabel-lan-cat6-utp-gigabit-ethernet-cable-rj45-1-1-5-2-3-5-8-10-15-meter-1731180268557338587", nomesh: true,
+    spek: ["Laptop TIA Portal ke PLC; pilih varian 3 m"] },
+  { id: "holesaw", nama: "Set hole saw bi-metal TOTAL TACSH1071", qty: 1, harga: 232000, toko: "Total Tools Indonesia", url: T + "total-tools-indonesia-shop/total-set-gergaji-lubang-bi-metal-bi-metal-hole-saw-set-tacsh1071-1733448905104852985", off: true,
+    spek: ["Lubang di panci dan rak (16–35 mm)", "Alat bengkel; lewati bila lab sudah punya"] },
+];
+const rp = n => "Rp" + n.toLocaleString("id-ID");
+const num = (n, d) => n.toLocaleString("id-ID", { minimumFractionDigits: d, maximumFractionDigits: d });
+document.getElementById("total").textContent = rp(PARTS.reduce((s, p) => s + p.qty * p.harga, 0));
+
+const stage = document.getElementById("stage");
+const threeOK = !!(window.THREE && THREE.OrbitControls);
+if (!threeOK) {
+  stage.insertAdjacentHTML("beforeend", '<div class="err"><p>Model 3D gagal dimuat karena pustaka three.js tidak terunduh. Periksa koneksi lalu muat ulang halaman. Daftar komponen di panel tetap bisa dibaca.</p></div>');
+}
+
+// ---------- daftar komponen ----------
+const listEl = document.getElementById("list"), detailEl = document.getElementById("detail");
+let selected = null;
+PARTS.forEach(p => {
+  const b = document.createElement("button");
+  b.className = "item"; b.dataset.id = p.id;
+  b.innerHTML = `<span class="n">${p.nama}</span><span class="p">${rp(p.qty * p.harga)}</span>
+    <span class="q">${p.qty} × ${rp(p.harga)} · ${p.toko}${p.off ? ' · <span class="off">alat bengkel</span>' : p.nomesh ? ' · <span class="off">tidak dimodelkan</span>' : ""}</span>`;
+  b.addEventListener("click", () => select(selected === p.id ? null : p.id));
+  listEl.appendChild(b);
+});
+function renderDetail() {
+  const p = PARTS.find(x => x.id === selected);
+  if (!p) {
+    detailEl.innerHTML = `<h2>Pilih komponen</h2><p class="note" style="margin:0">Klik baris di bawah atau bagian alat di model. Geser "Urai" untuk membuka pintu panel dan memisahkan tangki.</p>`;
+    return;
+  }
+  detailEl.innerHTML = `<h2>${p.nama}</h2>
+    <ul>${p.spek.map(s => `<li>${s}</li>`).join("")}</ul>
+    <p class="note" style="margin:0">${p.qty} × ${rp(p.harga)} · ${p.toko}</p>
+    <a href="${p.url}" target="_blank" rel="noopener">Buka di Tokopedia</a>`;
+}
+renderDetail();
+
+const tabs = { k: document.getElementById("tab-k"), s: document.getElementById("tab-s") };
+const panes = { k: document.getElementById("pane-k"), s: document.getElementById("pane-s") };
+let mode = "k";
+function select(id) {
+  selected = id;
+  listEl.querySelectorAll(".item").forEach(b => b.setAttribute("aria-current", String(b.dataset.id === id)));
+  renderDetail(); if (threeOK) paint();
+}
+if (!threeOK) { tabs.s.disabled = true; return; }
+
+// ---------- SIM-CORE: neraca massa & panas + logika PLC (tanpa three.js) ----------
+const AM = Math.PI * 0.15 ** 2, AI = Math.PI * 0.125 ** 2;           // luas penampang tangki utama & inlet (m²)
+const H_LSL = 0.07, H_LSH = 0.25, H_OUT = 0.02, H_HTR = 0.055;         // tinggi sensor & keluaran (m dari dasar)
+const V_MAX = AM * 0.30 * 1000, V_RES = AI * H_OUT * 1000;             // L
+const T_AMB = 28, T_IN = 27, P_HTR = 1500, CP = 4186;
+const cfg = { sp: 60, hold: 300, tA: 85, tB: 85, tMix: 60, pi: true, auto: true };
+const ph = { VA: 10, VB: 10, V: 0, inA: 0, inB: 0, T: T_AMB, Ts: T_AMB, Pw: 0, E: 0, bucket: 0, leak: false, ssrStuck: false,
+  ksd: false, dryT: 0, qA: 0, qB: 0, qD: 0, Ploss: 0, heat: false };
+const plc = { step: 0, t: 0, tBatch: 0, paused: false, wait: false, alarm: "", I: 0, u: 0, win: 0, after: 0, estop: false,
+  btn: { start: false, stop: false, reset: false }, Q: { A: 0, B: 0, D: 0, M: 0, H: 0, run: 0, heat: 0, alm: 0 } };
+const STEPS = ["Siap", "Isi A", "Isi B", "Aduk", "Panaskan", "Tahan", "Kuras", "Selesai"];
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const lvl = () => ph.V / 1000 / AM;
+const sense = () => { const h = lvl(); return { auto: cfg.auto, eok: !plc.estop, lsl: h >= H_LSL, lsh: h >= H_LSH, lsll: h >= H_LSL }; };
+function go(n) { plc.step = n; plc.t = 0; plc.wait = false; plc.after = 0; if (n === 4) plc.I = 0; }
+function scan(dt) {
+  const I = sense(), Q = plc.Q, b = plc.btn;
+  for (const k in Q) Q[k] = 0;
+  if (!I.eok && !plc.alarm) plc.alarm = "E-stop ditekan: aktuator & pemanas diputus perangkat keras";
+  if (ph.Ts > 85 && !plc.alarm) plc.alarm = "Suhu lebih dari 85 °C";
+  if (plc.alarm) {
+    if (b.reset && I.eok && ph.Ts <= 85) { plc.alarm = ""; plc.paused = plc.step > 0 && plc.step < 7; }
+    Q.alm = 1; b.start = b.stop = b.reset = false; return;
+  }
+  let run = plc.step > 0 && plc.step < 7;
+  if (b.stop && run) plc.paused = true;
+  if (b.start) {
+    if (!run) { go(1); plc.paused = false; plc.tBatch = 0; ph.E = 0; }
+    else if (plc.paused) plc.paused = false;
+    else if (!I.auto || plc.wait) go(plc.step + 1);   // manual: START = lanjut ke langkah berikutnya
+  }
+  b.start = b.stop = b.reset = false;
+  run = plc.step > 0 && plc.step < 7;
+  if (!run || plc.paused) return;
+  plc.tBatch += dt; Q.run = 1;
+  if (plc.wait) return;
+  plc.t += dt;
+  let done = false;
+  switch (plc.step) {
+    case 1: Q.A = 1; done = plc.t >= cfg.tA || I.lsh; break;
+    case 2: Q.B = 1; done = plc.t >= cfg.tB || I.lsh; break;
+    case 3: Q.M = 1; done = plc.t >= cfg.tMix; break;
+    case 4: case 5: {
+      Q.M = 1;
+      if (!I.lsl) { plc.alarm = "Level bawah hilang saat memanaskan (anti dry-run)"; Q.M = 0; Q.alm = 1; return; }
+      const e = cfg.sp - ph.Ts;
+      if (cfg.pi) {                                            // PI posisi, anti-windup dengan integrasi bersyarat
+        const Kp = 0.25, Ti = 240, u0 = Kp * e + plc.I;
+        if ((u0 < 1 || e < 0) && (u0 > 0 || e > 0)) plc.I = clamp(plc.I + Kp / Ti * e * dt, 0, 0.6);
+        plc.u = clamp(Kp * e + plc.I, 0, 1);
+      } else if (ph.Ts < cfg.sp - 0.5) plc.u = 1; else if (ph.Ts > cfg.sp + 0.5) plc.u = 0;
+      plc.win = (plc.win + dt) % 2;                             // SSR proporsional waktu, jendela 2 s
+      Q.H = plc.win < plc.u * 2 ? 1 : 0;
+      done = plc.step === 4 ? ph.Ts >= cfg.sp - 0.5 : plc.t >= cfg.hold;
+      break;
+    }
+    case 6: Q.D = 1; plc.after = I.lsl ? 0 : plc.after + dt; done = plc.after >= 40; break;
+  }
+  Q.heat = Q.H;
+  if (done) { if (I.auto) go(plc.step + 1); else { plc.wait = true; for (const k of ["A", "B", "D", "M", "H", "heat"]) Q[k] = 0; } }
+}
+function physics(dt) {
+  const eok = !plc.estop, Q = plc.Q, h = lvl();
+  const hA = ph.VA / 1000 / AI, hB = ph.VB / 1000 / AI;
+  // aliran gravitasi lewat katup: Q[L/s] = Kv/3,6 · √Δp[bar], Δp = ρg·(tinggi air di atas keluaran + beda tinggi 10 cm)
+  const fin = (on, hx, V) => on && hx > H_OUT ? Math.min(2.5 / 3.6 * Math.sqrt(0.0981 * (hx - H_OUT + 0.10)), (V - V_RES) / dt) : 0;
+  const qA = Math.max(0, fin(Q.A && eok, hA, ph.VA)), qB = Math.max(0, fin(Q.B && eok, hB, ph.VB));
+  const qD = Q.D && eok && ph.V > 0 ? Math.min(4 / 3.6 * Math.sqrt(0.0981 * (h + 0.45)), ph.V / dt) : 0;
+  const qL = ph.leak && ph.V > 0 ? Math.min(0.04, ph.V / dt - qD) : 0;
+  // pemanas: K1 (E-stop) & KSD301 seri di jalur 220 V; LSLL seri di masukan SSR
+  ph.heat = eok && !ph.ksd && (ph.ssrStuck || (Q.H && eok && h >= H_LSL));
+  ph.Pw += ((ph.heat ? P_HTR : 0) - ph.Pw) * Math.min(1, dt / 25);
+  ph.E += (ph.heat ? P_HTR : 0) * dt;
+  if (ph.heat && h < H_HTR) { if ((ph.dryT += dt) > 20) ph.ksd = true; } else ph.dryT = 0;   // elemen kering → KSD di dinding panas
+  if (ph.T > 90) ph.ksd = true;
+  const UA = 8 * (2 * Math.PI * 0.15 * h + AM) + 6 * AM;          // dinding basah + dasar (8 W/m²K) + tutup (6 W/m²K)
+  ph.Ploss = ph.V > 0.3 ? UA * (ph.T - T_AMB) : 0;
+  const out = (qD + qL) * dt, tot = ph.inA + ph.inB;
+  if (tot > 0) { ph.inA -= out * ph.inA / tot; ph.inB -= out * ph.inB / tot; }
+  ph.inA = Math.max(0, ph.inA + qA * dt); ph.inB = Math.max(0, ph.inB + qB * dt);
+  const Vn = clamp(ph.V + (qA + qB - qD - qL) * dt, 0, V_MAX);
+  if (ph.V > 0.3) {
+    ph.T += ((h >= H_HTR ? ph.Pw : 0.3 * ph.Pw) - ph.Ploss) * dt / (ph.V * CP);
+    ph.T += (qA + qB) * dt * (T_IN - ph.T) / Math.max(Vn, 0.3);
+  } else ph.T += ((qA + qB) > 0 ? T_IN - ph.T : (T_AMB - ph.T) * Math.min(1, dt / 120));
+  ph.V = Vn; ph.VA -= qA * dt; ph.VB -= qB * dt; ph.bucket += qD * dt;
+  ph.qA = qA; ph.qB = qB; ph.qD = qD + qL;
+  ph.Ts += (ph.T - ph.Ts) * Math.min(1, dt / 8);                    // jeda probe PT100 ±8 s
+}
+function simAdvance(simDt) { const n = Math.max(1, Math.ceil(simDt / 0.1)), d = simDt / n; for (let i = 0; i < n; i++) { scan(d); physics(d); } }
+// ---------- /SIM-CORE ----------
+
+// ---------- scene ----------
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+stage.prepend(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 0.01, 50);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.minDistance = 0.3; controls.maxDistance = 6;
+controls.maxPolarAngle = Math.PI * 0.495;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8a949c, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85);
+sun.position.set(1.4, 2.8, 1.6); sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+Object.assign(sun.shadow.camera, { left: -1.4, right: 1.4, top: 1.8, bottom: -0.6, near: 0.5, far: 7 });
+scene.add(sun);
+
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const floorMat = new THREE.MeshStandardMaterial({ roughness: 0.95 });
+const floor = new THREE.Mesh(new THREE.PlaneGeometry(4, 3), floorMat);
+floor.rotation.x = -Math.PI / 2; floor.receiveShadow = true; scene.add(floor);
+function applyTheme() { scene.background = new THREE.Color(css("--scene")); floorMat.color.set(css("--floor")); }
+applyTheme();
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+
+const root = new THREE.Group(); scene.add(root);
+const meshes = [];
+const M = (color, metal = 0.1, rough = 0.6, op = 1) => new THREE.MeshStandardMaterial({ color, metalness: metal, roughness: rough, transparent: op < 1, opacity: op, depthWrite: op >= 1, side: op < 1 ? THREE.DoubleSide : THREE.FrontSide });
+function add(part, geo, mat, pos, ex = [0, 0, 0], parent = root, rot = [0, 0, 0]) {
+  const m = new THREE.Mesh(geo, mat);
+  m.position.set(...pos); m.rotation.set(...rot);
+  m.castShadow = mat.opacity >= 1; m.receiveShadow = true;
+  m.userData = { part, base: new THREE.Vector3(...pos), ex: new THREE.Vector3(...ex), op: mat.opacity };
+  parent.add(m); meshes.push(m); return m;
+}
+const BOX = (x, y, z) => new THREE.BoxGeometry(x, y, z);
+const CY = (r, l, s = 24) => new THREE.CylinderGeometry(r, r, l, s);
+const CYX = (r, l, s = 24) => CY(r, l, s).rotateZ(Math.PI / 2);
+const CYZ = (r, l, s = 24) => CY(r, l, s).rotateX(Math.PI / 2);
+const SS = 0xc5ccd2, BRASS = 0xc9a24a, DARK = 0x2b2f34;
+const ssM = () => M(SS, 0.35, 0.35);
+const tube = (pts, r) => new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 10, false);
+
+// rak 4 tingkat 80 × 50 × 120 cm (meter; depan = +z, kanan = +x)
+const TIER = [0.06, 0.42, 0.80, 1.18], ST = 0.012;
+for (const sx of [-1, 1]) for (const sz of [-1, 1]) add("rak", BOX(0.025, 1.20, 0.025), ssM(), [sx * 0.3875, 0.60, sz * 0.2375]);
+TIER.forEach(y => add("rak", BOX(0.80, ST, 0.50), M(0xb4bcc2, 0.3, 0.45), [0, y, 0]));
+const Y3 = TIER[2] + ST / 2, Y4 = TIER[3] + ST / 2;               // permukaan rak tingkat 3 & 4
+
+// panci: dinding transparan supaya isi terlihat
+const water = [];
+function pot(part, x, y, z, r, h, ex) {
+  add(part, new THREE.CylinderGeometry(r, r, h, 48, 1, true), M(SS, 0.3, 0.3, 0.32), [x, y + h / 2, z], ex);
+  add(part, new THREE.CircleGeometry(r, 48).rotateX(-Math.PI / 2), M(SS, 0.3, 0.4), [x, y + 0.002, z], ex);
+  add(part, new THREE.TorusGeometry(r, 0.004, 8, 48).rotateX(Math.PI / 2), ssM(), [x, y + h, z], ex);
+  for (const s of [-1, 1]) add(part, BOX(0.03, 0.012, 0.05), ssM(), [x + s * (r + 0.012), y + h - 0.03, z], ex);
+  const w = new THREE.Mesh(CY(r - 0.003, 1, 48), new THREE.MeshStandardMaterial({ color: 0x3b82c4, roughness: 0.15, metalness: 0, transparent: true, opacity: 0.72 }));
+  w.position.set(x, y, z); w.scale.y = 0.0001; w.visible = false; root.add(w);
+  const o = { w, y, r, ex: new THREE.Vector3(...ex), x, z }; water.push(o); return o;
+}
+const wMain = pot("utama", 0, Y3, 0, 0.15, 0.30, [0, 0, 0]);
+const wA = pot("inlet", -0.25, Y4, 0, 0.125, 0.25, [-0.12, 0.18, 0]);
+const wB = pot("inlet", 0.25, Y4, 0, 0.125, 0.25, [0.12, 0.18, 0]);
+
+// katup inlet: bulkhead di dinding dalam panci inlet, katup horizontal, selang turun ke tangki utama
+const coils = {};
+function inletValve(s, key) {
+  const x0 = s * 0.125, y = Y4 + 0.025, ex = [s * 0.08, 0.12, 0];
+  add("bh12", CYX(0.016, 0.014), ssM(), [x0, y, 0], ex);
+  add("svin", BOX(0.05, 0.035, 0.035), ssM(), [s * 0.088, y, 0], ex);
+  coils[key] = add("svin", CY(0.019, 0.045), M(0x1b1d20, 0.2, 0.5), [s * 0.088, y + 0.04, 0], ex);
+  add("svin", CY(0.008, 0.012), M(0x1b1d20, 0.2, 0.5), [s * 0.088, y + 0.068, 0], ex);
+  add("hn12", CYX(0.009, 0.02), ssM(), [s * 0.054, y, 0], ex);
+  add("selang12", tube([[s * 0.046, y, 0], [s * 0.04, y - 0.01, 0], [s * 0.04, y - 0.05, 0], [s * 0.04, Y3 + 0.24, 0]], 0.009),
+    M(0xe6eef2, 0, 0.2, 0.6), [0, 0, 0], ex);
+}
+inletValve(-1, "A"); inletValve(1, "B");
+const streams = ["A", "B"].map(k => {
+  const m = new THREE.Mesh(CY(0.005, 1, 10), new THREE.MeshStandardMaterial({ color: 0x3b82c4, transparent: true, opacity: 0.7 }));
+  m.visible = false; root.add(m); return m;
+});
+
+// pengaduk: bearing di rak atas, kopling, motor tegak, as turun ke tangki utama
+add("bearing", BOX(0.07, 0.02, 0.03), M(0x6f7880, 0.5, 0.4), [0, Y4 + 0.01, 0], [0, 0.12, 0]);
+add("bearing", CY(0.016, 0.03), M(0x6f7880, 0.5, 0.4), [0, Y4 + 0.035, 0], [0, 0.12, 0]);
+add("kopling", CY(0.0095, 0.025), M(0x9aa3aa, 0.8, 0.3), [0, Y4 + 0.07, 0], [0, 0.2, 0]);
+add("motor", CY(0.0185, 0.03), M(0x8d959c, 0.7, 0.35), [0, Y4 + 0.1, 0], [0, 0.28, 0]);
+add("motor", CY(0.018, 0.07), M(0x3d4349, 0.4, 0.4), [0, Y4 + 0.15, 0], [0, 0.28, 0]);
+add("motor", BOX(0.05, 0.004, 0.05), M(0x30343a, 0.4, 0.5), [0, Y4 + 0.083, 0], [0, 0.28, 0]);
+for (const s of [-1, 1]) add("motor", BOX(0.004, 0.083, 0.05), M(0x30343a, 0.4, 0.5), [s * 0.027, Y4 + 0.042, 0], [0, 0.28, 0]);
+add("motor", BOX(0.06, 0.025, 0.045), M(0x1d4ea0, 0.1, 0.55), [0, Y4 + 0.0125, 0.17], [0, 0.1, 0.1]);   // kontrol kecepatan
+const stir = new THREE.Group(); stir.position.set(0, Y3 + 0.06, 0); root.add(stir);
+const shaftLen = Y4 + 0.07 - (Y3 + 0.06);
+add("impeller", CY(0.005, shaftLen, 12), ssM(), [0, shaftLen / 2, 0], [0, 0, 0], stir);
+add("impeller", CY(0.012, 0.025, 16), ssM(), [0, 0, 0], [0, 0, 0], stir);
+for (let i = 0; i < 3; i++) add("impeller", BOX(0.045, 0.002, 0.022), ssM(), [Math.cos(i * 2.094) * 0.032, 0, Math.sin(i * 2.094) * 0.032], [0, 0, 0], stir, [0.45, -i * 2.094, 0]);
+
+// pemanas: masuk dari dinding kanan (x+) di tali busur z = -0,08, 3 cm dari dasar
+const HZ = -0.08, HY = Y3 + 0.03, HX = Math.sqrt(0.15 ** 2 - HZ ** 2);
+add("bh1", CYX(0.022, 0.016), ssM(), [HX + 0.004, HY, HZ], [0.08, 0, 0]);
+add("heater", CYX(0.02, 0.025, 6), M(BRASS, 0.8, 0.3), [HX + 0.024, HY, HZ], [0.12, 0, 0]);
+add("heater", CYX(0.018, 0.03), M(0x4a4f55, 0.3, 0.5), [HX + 0.05, HY, HZ], [0.12, 0, 0]);
+const heaterMat = M(0x9aa1a7, 0.7, 0.35);
+for (const dz of [-0.016, 0.016]) add("heater", CYX(0.004, 0.2, 10), heaterMat, [HX - 0.1, HY, HZ + dz], [0.12, 0, 0]);
+add("heater", new THREE.TorusGeometry(0.016, 0.004, 8, 16, Math.PI).rotateX(-Math.PI / 2).rotateY(Math.PI / 2), heaterMat, [HX - 0.2, HY, HZ], [0.12, 0, 0]);
+add("ksd", CYX(0.0085, 0.012), M(0x2a2c2f, 0.3, 0.5), [Math.sqrt(0.15 ** 2 - 0.03 ** 2) + 0.006, Y3 + 0.07, 0.03], [0.12, 0, 0.04]);
+
+// PT100: dinding kiri, tali busur z = +0,08, 5,5 cm dari dasar; kepala berisi transmitter di luar
+const PX = -Math.sqrt(0.15 ** 2 - 0.08 ** 2), PY = Y3 + 0.055;
+add("bh12", CYX(0.016, 0.014), ssM(), [PX - 0.004, PY, 0.08], [-0.08, 0, 0]);
+add("pt100", CYX(0.004, 0.1, 10), ssM(), [PX + 0.05, PY, 0.08], [-0.12, 0, 0]);
+add("pt100", CYX(0.012, 0.06), ssM(), [PX - 0.04, PY, 0.08], [-0.12, 0, 0]);
+add("pt100", CY(0.03, 0.05), M(0x8b949b, 0.6, 0.35), [PX - 0.085, PY + 0.01, 0.08], [-0.12, 0, 0]);
+add("tt", CY(0.021, 0.012), M(0x1d4ea0, 0.1, 0.55), [PX - 0.085, PY + 0.042, 0.08], [-0.12, 0.08, 0]);
+
+// float switch tipe L di dinding depan (z+): LSL & LSLL 7 cm, LSH 25 cm
+const floats = {};
+[["LSL", -0.05, H_LSL], ["LSLL", 0.05, H_LSL], ["LSH", 0, H_LSH]].forEach(([k, x, hh]) => {
+  const zw = Math.sqrt(0.15 ** 2 - x * x), y = Y3 + hh;
+  add("float", CYZ(0.007, 0.03), ssM(), [x, y, zw - 0.005], [0, 0, 0.1]);
+  floats[k] = add("float", CY(0.011, 0.024), M(0xd9dee2, 0.6, 0.3), [x, y - 0.006, zw - 0.034], [0, 0, 0.1]);
+});
+
+// buang: bulkhead di dasar (x = -0,08), katup di bawah rak tingkat 3, selang ke ember di lantai
+const DX = -0.08;
+add("bh34", CY(0.02, 0.03), ssM(), [DX, Y3 - 0.006, 0], [0, -0.05, 0]);
+add("svout", BOX(0.04, 0.055, 0.04), ssM(), [DX, Y3 - 0.06, 0], [0, -0.1, 0]);
+coils.D = add("svout", CYZ(0.021, 0.05), M(0x1b1d20, 0.2, 0.5), [DX, Y3 - 0.06, 0.045], [0, -0.1, 0]);
+add("hn34", CY(0.011, 0.025), ssM(), [DX, Y3 - 0.1, 0], [0, -0.12, 0]);
+add("selang34", tube([[DX, Y3 - 0.11, 0], [DX - 0.04, Y3 - 0.25, 0.02], [-0.25, TIER[1] + 0.03, 0.08], [-0.5, TIER[1] + 0.02, 0.12], [-0.62, 0.36, 0.12], [-0.62, 0.3, 0.12]], 0.012),
+  M(0x4f8f5c, 0, 0.45, 0.85), [0, 0, 0], [0, 0, 0]);
+add("ember", new THREE.CylinderGeometry(0.155, 0.13, 0.33, 40, 1, true), M(0xf2f2f0, 0, 0.6, 0.55), [-0.62, 0.165, 0.12], [-0.1, 0, 0]);
+add("ember", new THREE.CircleGeometry(0.13, 40).rotateX(-Math.PI / 2), M(0xf2f2f0, 0, 0.6), [-0.62, 0.002, 0.12], [-0.1, 0, 0]);
+const wBucket = { w: new THREE.Mesh(CY(0.14, 1, 40), new THREE.MeshStandardMaterial({ color: 0x6b8fa8, transparent: true, opacity: 0.7 })), y: 0.003 };
+wBucket.w.visible = false; wBucket.w.position.set(-0.62, 0.003, 0.12); root.add(wBucket.w);
+
+// panel kontrol mendatar di rak tingkat 2, pintu menghadap depan
+const PB = { x: 0.17, y: TIER[1] + ST / 2 + 0.15, z: 0.14, w: 0.40, h: 0.30, d: 0.20 };
+const boxM = M(0xd8dcdf, 0.3, 0.55);
+add("box", BOX(PB.w, PB.h, 0.004), boxM, [PB.x, PB.y, PB.z - PB.d / 2]);
+for (const s of [-1, 1]) {
+  add("box", BOX(0.004, PB.h, PB.d), boxM, [PB.x + s * PB.w / 2, PB.y, PB.z]);
+  add("box", BOX(PB.w, 0.004, PB.d), boxM, [PB.x, PB.y + s * PB.h / 2, PB.z]);
+}
+const EXD = [0, 0, 0.32], ZB = PB.z - PB.d / 2 + 0.01;   // pelat belakang
+const IN = (part, geo, mat, x, y, dz = 0) => add(part, geo, mat, [PB.x + x, PB.y + y, ZB + dz], [0, 0, 0.06]);
+IN("rel", BOX(0.36, 0.035, 0.008), M(0xb8bfc4, 0.7, 0.3), 0, 0.075); IN("rel", BOX(0.36, 0.035, 0.008), M(0xb8bfc4, 0.7, 0.3), 0, -0.055);
+IN("rcbo", BOX(0.036, 0.085, 0.07), M(0xf4f4f2, 0, 0.6), -0.155, 0.075, 0.04);
+IN("mcb", BOX(0.018, 0.085, 0.07), M(0xf4f4f2, 0, 0.6), -0.125, 0.075, 0.04); IN("mcb", BOX(0.018, 0.085, 0.07), M(0xf4f4f2, 0, 0.6), -0.105, 0.075, 0.04);
+IN("plc", BOX(0.11, 0.1, 0.075), M(0x3a4148, 0.2, 0.55), -0.015, 0.075, 0.045);
+IN("plc", BOX(0.1, 0.012, 0.002), M(0x2bb3a8, 0.1, 0.5), -0.015, 0.11, 0.084);
+IN("relay", BOX(0.03, 0.04, 0.05), M(0x2b2f34, 0.1, 0.6), 0.09, 0.075, 0.03); IN("relay", BOX(0.026, 0.035, 0.036), M(0xd7e3ea, 0, 0.3, 0.75), 0.09, 0.075, 0.07);
+IN("psu", BOX(0.129, 0.097, 0.03), M(0xaab2b8, 0.7, 0.35), -0.1, -0.06, 0.02);
+IN("heatsink", BOX(0.06, 0.08, 0.03), M(0xb9c0c6, 0.7, 0.35), 0.04, -0.06, 0.02);
+IN("ssr", BOX(0.045, 0.06, 0.023), M(0x2a2c2f, 0.1, 0.5), 0.04, -0.06, 0.047);
+for (let i = 0; i < 12; i++) IN("terminal", BOX(0.006, 0.045, 0.04), M(i === 11 ? 0x2f8f3a : 0x8c9399, 0.1, 0.6), 0.09 + i * 0.0065, -0.055, 0.025);
+IN("duct", BOX(0.36, 0.025, 0.025), M(0x9aa1a6, 0, 0.6), 0, 0.008, 0.015);
+add("box", BOX(PB.w, PB.h, 0.004), boxM, [PB.x, PB.y, PB.z + PB.d / 2], EXD);
+const ZD = PB.z + PB.d / 2 + 0.002, lamps = {};
+[["run", 0x1e9e4a, -0.11], ["heat", 0xe0a800, -0.06], ["alm", 0xd02a2a, -0.01]].forEach(([k, c, x]) => {
+  lamps[k] = add("lampu", CYZ(0.011, 0.014), M(c, 0.1, 0.35), [PB.x + x, PB.y + 0.085, ZD + 0.007], EXD);
+});
+[["START", 0x1e9e4a, -0.15], ["STOP", 0xd02a2a, -0.1], ["RESET", 0x1f5fbf, -0.05]].forEach(([, c, x]) =>
+  add("tombol", CYZ(0.011, 0.016), M(c, 0.1, 0.45), [PB.x + x, PB.y - 0.02, ZD + 0.008], EXD));
+add("selector", CYZ(0.013, 0.012), M(0x1b1d20, 0.1, 0.5), [PB.x + 0.01, PB.y - 0.02, ZD + 0.006], EXD);
+add("selector", BOX(0.006, 0.022, 0.008), M(0x1b1d20, 0.1, 0.5), [PB.x + 0.01, PB.y - 0.02, ZD + 0.014], EXD);
+add("estop", BOX(0.05, 0.05, 0.002), M(0xf2c200, 0.1, 0.5), [PB.x + 0.11, PB.y - 0.02, ZD + 0.001], EXD);
+const estopCap = add("estop", CYZ(0.02, 0.016), M(0xc62828, 0.1, 0.4), [PB.x + 0.11, PB.y - 0.02, ZD + 0.016], EXD);
+
+// ---------- urai & pilih ----------
+let explode = 0;
+function applyExplode() {
+  for (const m of meshes) m.position.copy(m.userData.base).addScaledVector(m.userData.ex, explode);
+  for (const o of [wA, wB]) o.w.position.set(o.x + o.ex.x * explode, o.y + o.ex.y * explode, o.z);
+}
+function paint() {
+  const acc = new THREE.Color(css("--accent"));
+  for (const m of meshes) {
+    const on = selected === m.userData.part, dim = selected && !on, op = m.userData.op;
+    m.material.transparent = !!dim || op < 1; m.material.opacity = dim ? 0.12 : op; m.material.depthWrite = !dim && op >= 1;
+    m.material.emissive.copy(on ? acc : new THREE.Color(0)); m.material.emissiveIntensity = on ? 0.45 : 0;
+  }
+}
+document.getElementById("explode").addEventListener("input", e => { explode = +e.target.value; applyExplode(); });
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2();
+let downAt = null;
+renderer.domElement.addEventListener("pointerdown", e => { downAt = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener("pointerup", e => {
+  if (!downAt || Math.hypot(e.clientX - downAt[0], e.clientY - downAt[1]) > 5 || mode !== "k") return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hits = ray.intersectObjects(meshes, false), hit = hits.find(h => h.object.userData.op >= 1) || hits[0];  // dinding panci transparan tidak menutupi isinya
+  select(hit ? hit.object.userData.part : null);
+  if (hit) listEl.querySelector(`[data-id="${hit.object.userData.part}"]`)?.scrollIntoView({ block: "nearest" });
+});
+
+// ---------- kamera ----------
+const VIEWS = { iso: [[1.75, 1.55, 2.1], [-0.05, 0.68, 0]], front: [[0, 0.75, 2.2], [0, 0.72, 0]], side: [[2.2, 0.8, 0], [0, 0.72, 0]],
+  top: [[0.0001, 2.6, 0.0001], [0, 0.7, 0]], panel: [[0.3, 0.75, 0.95], [0.17, 0.58, 0.2]] };
+function setView(v) { const [p, t] = VIEWS[v]; controls.target.set(...t); camera.position.set(...p); controls.update(); }
+document.querySelectorAll("[data-view]").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+
+// ---------- kendali UI simulasi ----------
+const $ = id => document.getElementById(id);
+let speed = 30;
+const pulse = { start: 0, stop: 0, reset: 0 };
+$("b-start").addEventListener("click", () => { plc.btn.start = true; pulse.start = 0.4; });
+$("b-stop").addEventListener("click", () => { plc.btn.stop = true; pulse.stop = 0.4; });
+$("b-reset").addEventListener("click", () => { plc.btn.reset = true; pulse.reset = 0.4; });
+$("b-es").addEventListener("click", e => { plc.estop = !plc.estop; e.currentTarget.setAttribute("aria-pressed", plc.estop); e.currentTarget.textContent = plc.estop ? "Lepas E-stop" : "E-stop"; });
+const pressGroup = (ids, pick) => ids.forEach(id => $(id).addEventListener("click", () => { ids.forEach(j => $(j).setAttribute("aria-pressed", String(j === id))); pick(id); }));
+pressGroup(["m-auto", "m-man"], id => cfg.auto = id === "m-auto");
+pressGroup(["c-pi", "c-hy"], id => { cfg.pi = id === "c-pi"; plc.I = 0; plc.u = 0; });
+document.querySelectorAll("#speed button").forEach(b => b.addEventListener("click", () => {
+  speed = +b.dataset.x; document.querySelectorAll("#speed button").forEach(x => x.setAttribute("aria-pressed", String(x === b)));
+}));
+const slide = (id, out, f) => { const el = $(id), o = $(out); const u = () => o.textContent = f(+el.value); el.addEventListener("input", u); u(); };
+slide("sp", "o-sp", v => (cfg.sp = v) + " °C");
+slide("hold", "o-hold", v => { cfg.hold = v * 60; return v + " mnt"; });
+slide("ta", "o-ta", v => (cfg.tA = v) + " s");
+slide("tb", "o-tb", v => (cfg.tB = v) + " s");
+$("b-fill").addEventListener("click", () => { ph.VA = 10; ph.VB = 10; ph.bucket = 0; });
+const toggle = (id, key) => $(id).addEventListener("click", e => { ph[key] = !ph[key]; e.currentTarget.setAttribute("aria-pressed", ph[key]); });
+toggle("f-leak", "leak"); toggle("f-ssr", "ssrStuck");
+$("f-ksd").addEventListener("click", () => { if (ph.T < 70) ph.ksd = false; });
+
+// ---------- tabel I/O & grafik ----------
+const IO = [
+  ["%I0.0", "START", "tombol hijau, NO", () => +(pulse.start > 0)],
+  ["%I0.1", "STOP", "tombol merah, NC (1 = tidak ditekan)", () => +!(pulse.stop > 0)],
+  ["%I0.2", "RESET", "tombol biru, NO", () => +(pulse.reset > 0)],
+  ["%I0.3", "AUTO", "selector, 0 = manual", () => +cfg.auto],
+  ["%I0.4", "ESTOP_OK", "24 V setelah kontak NC E-stop", () => +!plc.estop],
+  ["%I0.5", "LSL", "level bawah 7 cm, 1 = terendam", () => +sense().lsl],
+  ["%I0.6", "LSH", "level atas 25 cm", () => +sense().lsh],
+  ["%IW64", "TT1", "suhu 0–10 V = 0–27648", () => `${Math.round(clamp(ph.Ts, 0, 100) * 276.48)} = ${num(ph.Ts, 1)} °C`],
+  ["%IW66", "cadangan", "level analog (opsi)", () => "-"],
+  ["%Q0.0", "SV_A", "katup inlet A", () => plc.Q.A],
+  ["%Q0.1", "SV_B", "katup inlet B", () => plc.Q.B],
+  ["%Q0.2", "SV_D", "katup buang", () => plc.Q.D],
+  ["%Q0.3", "M1", "motor pengaduk", () => plc.Q.M],
+  ["%Q0.4", "HTR", "SSR pemanas, lewat kontak LSLL", () => plc.Q.H],
+  ["%Q0.5", "H_RUN", "lampu hijau JALAN", () => plc.Q.run],
+  ["%Q0.6", "H_HEAT", "lampu kuning PEMANAS", () => plc.Q.heat],
+  ["%Q0.7", "H_ALM", "lampu merah ALARM", () => plc.Q.alm],
+];
+const ioBody = $("io");
+IO.forEach(([a, t, d], i) => ioBody.insertAdjacentHTML("beforeend", `<tr><td>${a}</td><td>${t}<small>${d}</small></td><td id="io${i}"></td></tr>`));
+const hist = []; let sampleAcc = 0, simT = 0;
+const chart = $("chart"), cx = chart.getContext("2d");
+function drawChart() {
+  const dpr = Math.min(devicePixelRatio, 2), W = chart.clientWidth, H = chart.clientHeight;
+  if (chart.width !== Math.round(W * dpr)) { chart.width = Math.round(W * dpr); chart.height = Math.round(H * dpr); }
+  cx.setTransform(dpr, 0, 0, dpr, 0, 0); cx.clearRect(0, 0, W, H);
+  const L = 30, R = 30, Tp = 8, B = 18, pw = W - L - R, phh = H - Tp - B;
+  const span = Math.max(600, hist.length ? hist[hist.length - 1][0] - hist[0][0] : 0), t0 = hist.length ? hist[hist.length - 1][0] - span : 0;
+  const X = t => L + (t - t0) / span * pw, YT = v => Tp + (1 - (v - 20) / 80) * phh, YV = v => Tp + (1 - v / 22) * phh;
+  cx.font = "11px " + css("--f-mono"); cx.fillStyle = css("--muted"); cx.strokeStyle = css("--line"); cx.lineWidth = 1;
+  for (const v of [20, 40, 60, 80, 100]) { cx.beginPath(); cx.moveTo(L, YT(v)); cx.lineTo(L + pw, YT(v)); cx.stroke(); cx.fillText(v, 4, YT(v) + 4); }
+  for (const v of [0, 11, 22]) cx.fillText(v, L + pw + 6, YV(v) + 4);
+  cx.fillText(`${Math.round(span / 60)} menit terakhir`, L, H - 4);
+  const line = (k, Y, col, dash) => {
+    cx.beginPath(); cx.setLineDash(dash || []); cx.strokeStyle = col; cx.lineWidth = 2;
+    hist.forEach((s, i) => { const x = X(s[0]), y = Y(s[k]); i ? cx.lineTo(x, y) : cx.moveTo(x, y); }); cx.stroke(); cx.setLineDash([]);
+  };
+  if (hist.length > 1) { line(3, YV, css("--water")); line(2, YT, css("--muted"), [4, 4]); line(1, YT, css("--accent")); }
+}
+const mmss = s => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+function tele() {
+  const run = plc.step > 0 && plc.step < 7;
+  $("s-step").textContent = plc.alarm ? "Alarm" : STEPS[plc.step] + (plc.paused ? " (jeda)" : plc.wait ? " (tunggu START)" : "");
+  $("s-time").textContent = run ? `${mmss(plc.t)} · batch ${mmss(plc.tBatch)}` : "";
+  const msg = $("s-msg");
+  msg.className = plc.alarm ? "alarm" : "";
+  msg.textContent = plc.alarm ? plc.alarm + ". Atasi penyebab, lalu RESET." :
+    plc.paused ? "Dihentikan dengan STOP. START untuk melanjutkan." :
+    plc.wait ? "Langkah selesai (mode manual). START untuk langkah berikutnya." :
+    ({ 0: "Tekan START untuk mulai satu batch.", 1: "Katup A terbuka sampai waktu takaran atau level atas.", 2: "Katup B terbuka sampai waktu takaran atau level atas.",
+      3: "Pengaduk menyamakan campuran.", 4: `Memanaskan ke ${cfg.sp} °C, pengaduk tetap jalan.`, 5: `Menahan ${cfg.sp} °C.`,
+      6: "Katup buang terbuka sampai level bawah kering + 40 s.", 7: "Batch selesai. Isi ulang tangki inlet, lalu START." })[plc.step];
+  $("t-T").textContent = `${num(ph.Ts, 1)} °C`;
+  $("t-V").textContent = `${num(ph.V, 1)} L · ${num(lvl() * 100, 1)} cm`;
+  $("t-P").textContent = `${num(ph.Pw, 0)} W`;
+  $("t-L").textContent = `${num(ph.Ploss, 0)} W`;
+  $("t-AB").textContent = `${num(ph.VA, 1)} / ${num(ph.VB, 1)} L`;
+  const tot = ph.inA + ph.inB;
+  $("t-mix").textContent = tot > 0.2 ? `${num(ph.inA, 1)} : ${num(ph.inB, 1)} L` : "-";
+  $("t-E").textContent = `${num(ph.E / 3.6e6, 2)} kWh`;
+  $("t-bk").textContent = `${num(ph.bucket, 1)} L` + (ph.bucket > 20 ? " meluap" : "");
+  const h = lvl(), s = [];
+  s.push(h >= H_LSL ? '<span class="state-ok">LSLL terendam, SSR boleh</span>' : '<span class="state-warn">LSLL kering, masukan SSR terputus</span>');
+  s.push(ph.ksd ? '<span class="state-hit">KSD301 putus, reset tangan</span>' : '<span class="state-ok">KSD301 tersambung</span>');
+  if (ph.ssrStuck) s.push('<span class="state-hit">SSR macet: hanya KSD301 dan K1 yang bisa memutus</span>');
+  if (plc.estop) s.push('<span class="state-hit">K1 jatuh, pemanas terputus</span>');
+  $("t-safe").innerHTML = s.join("<br>");
+  $("f-ksd").hidden = !ph.ksd;
+  IO.forEach((r, i) => { const v = r[3](); const el = $("io" + i); el.textContent = v; el.className = v === 1 ? "on" : ""; });
+  drawChart();
+}
+
+// ---------- tampilan 3D hidup ----------
+const cool = new THREE.Color(0x3b82c4), hot = new THREE.Color(0xe0612b), black = new THREE.Color(0);
+function setWater(o, V, area, col) {
+  const hgt = V / 1000 / area; o.w.visible = hgt > 0.0008;
+  o.w.scale.y = Math.max(hgt, 0.0001); o.w.position.y = o.y + (o === wMain ? 0 : o.ex.y * explode) + hgt / 2 + 0.002;
+  if (col) o.w.material.color.copy(col);
+}
+const glow = (m, on, c) => { m.material.emissive.set(on ? c : 0); m.material.emissiveIntensity = on ? 0.9 : 0; };
+let blink = 0;
+function visuals(dt) {
+  blink = (blink + dt) % 1;
+  const tc = cool.clone().lerp(hot, clamp((ph.T - 25) / 50, 0, 1));
+  setWater(wMain, ph.V, AM, tc); setWater(wA, ph.VA, AI); setWater(wB, ph.VB, AI);
+  const bh = Math.min(ph.bucket, 20) / 1000 / (Math.PI * 0.14 ** 2);
+  wBucket.w.visible = bh > 0.001; wBucket.w.scale.y = Math.max(bh, 0.0001); wBucket.w.position.y = 0.003 + bh / 2;
+  const top = Y3 + lvl();
+  [[streams[0], ph.qA, -0.04], [streams[1], ph.qB, 0.04]].forEach(([m, q, x]) => {
+    const y0 = Y3 + 0.24, len = Math.max(0.005, y0 - top); m.visible = q > 0 && mode === "s";
+    m.scale.y = len; m.position.set(x, y0 - len / 2, 0);
+  });
+  stir.rotation.y += (plc.Q.M && !plc.estop ? 167 / 60 * 2 * Math.PI : 0) * Math.min(dt, 0.05) * (mode === "s" ? 1 : 0);
+  if (mode !== "s") return;
+  const acc = css("--accent"), e = !plc.estop;
+  glow(coils.A, plc.Q.A && e, acc); glow(coils.B, plc.Q.B && e, acc); glow(coils.D, plc.Q.D && e, acc);
+  heaterMat.emissive.set(0xff4a1a); heaterMat.emissiveIntensity = ph.Pw / P_HTR * 0.9;
+  const on = blink < 0.5;
+  glow(lamps.run, plc.Q.run && (!(plc.paused || plc.wait) || on), 0x22c55e);
+  glow(lamps.heat, plc.Q.heat || ph.heat, 0xffc107);
+  glow(lamps.alm, plc.Q.alm && on, 0xff3b3b);
+  const I = sense();
+  glow(floats.LSL, I.lsl, 0x22c55e); glow(floats.LSLL, I.lsll, 0x22c55e); glow(floats.LSH, I.lsh, 0x22c55e);
+  estopCap.position.z = estopCap.userData.base.z - (plc.estop ? 0.008 : 0);
+}
+
+// tab
+function setMode(mo) {
+  mode = mo;
+  for (const key of ["k", "s"]) { tabs[key].setAttribute("aria-selected", key === mo); panes[key].hidden = key !== mo; panes[key].style.display = key === mo ? "flex" : ""; }
+  if (mo === "s") { explode = 0; $("explode").value = 0; applyExplode(); select(null); }
+  else { streams.forEach(s => s.visible = false); paint(); }
+  $("hint").textContent = mo === "s" ? "Model mengikuti simulasi: air, katup menyala, lampu panel. Seret untuk memutar." : "Seret untuk memutar, gulir atau cubit untuk zoom, klik komponen untuk detail.";
+}
+tabs.k.addEventListener("click", () => setMode("k")); tabs.s.addEventListener("click", () => setMode("s"));
+[tabs.k, tabs.s].forEach(t => t.addEventListener("keydown", e => { if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = t === tabs.k ? tabs.s : tabs.k; n.focus(); n.click(); } }));
+
+// ---------- loop ----------
+function resize() {
+  const r = stage.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false); camera.aspect = r.width / r.height; camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(stage); resize();
+setView("iso"); select(null); visuals(0);
+let last = performance.now(), tAcc = 0;
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now;
+  if (mode === "s") {
+    const sdt = dt * speed;
+    simAdvance(sdt);
+    simT += sdt;
+    if ((sampleAcc += sdt) >= 5) { sampleAcc = 0; hist.push([simT, ph.Ts, cfg.sp, ph.V]); if (hist.length > 720) hist.shift(); }
+    for (const k in pulse) pulse[k] = Math.max(0, pulse[k] - dt);
+  }
+  visuals(dt);
+  controls.update(); renderer.render(scene, camera);
+  if (mode === "s" && (tAcc += dt) > 0.15) { tAcc = 0; tele(); }
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+})();
+</script>
