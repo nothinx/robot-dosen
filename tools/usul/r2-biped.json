@@ -1,0 +1,47 @@
+{
+  "docx": "robotic_arm_specs.docx",
+  "judul_dosen": "Robot berkaki",
+  "nama": "Robot berkaki",
+  "html": "r2-biped.html",
+  "usul": {
+    "1": [
+      "12 sendi, 6 per kaki: hip yaw, hip roll, hip pitch, lutut, ankle pitch, ankle roll. Daftar dosen baru berisi 5 sendi padahal tertulis 6-DOF; hip yaw ditambahkan supaya robot bisa berbelok. Bentuk humanoid: badan menampung elektronik, kepala membawa kamera stereo. Lengan belum termasuk (opsi: 3 servo per lengan, tambah ±Rp4,8 jt)."
+    ],
+    "2": [
+      "Paha 120 mm + betis 120 mm (sumbu ke sumbu), tinggi robot ±0,55 m."
+    ],
+    "3": [
+      "Target ±2,3 kg (estimasi dari komponen). Alasan, dihitung di simulasi (visual/r2-biped.html, torsi statik terhadap stall servo 2,94 N·m): berat 2,3 kg → beban servo tertinggi 27% saat jalan, 24% jongkok, 34% berdiri satu kaki; berat 6 kg → 70%, 63%, 87%. Saat melangkah beban dinamis 1,5–2× angka statik, jadi 6 kg melewati kemampuan servo kelas ini; sasaran kerja ≤ 50% stall."
+    ],
+    "4": [
+      "Telapak pelat aluminium 120 × 70 mm + alas karet anti-slip."
+    ],
+    "5": [
+      "Servo bus ST3215 12 V 30 kg·cm (2,94 N·m), 12 unit: enkoder magnetik 12-bit (4096 posisi, 0,088°), umpan balik posisi, kecepatan, beban, suhu; satu jalur bus TTL 1 Mbps. Dipilih 30 kg·cm (di atas 20 kg·cm) karena perhitungan baris berat. Servo PWM biasa lebih murah tetapi tanpa umpan balik dan bukan 12 V."
+    ],
+    "6": [
+      "Aluminium 1,8 mm potong laser (pesan custom), ditekuk jadi braket U/L. Stainless setebal sama ±3× lebih berat."
+    ],
+    "7": [
+      "Raspberry Pi 5 4 GB + active cooler + microSD 64 GB. Servo dikendalikan lewat adapter bus servo USB; IMU lewat I2C; kamera lewat USB. Pi 5 2 GB menghemat ±Rp1,4 jt bila tidak memakai ROS 2."
+    ],
+    "8": [
+      "LiPo 3S 11,1 V 5000 mAh + BMS 3S 40 A. Alasan: servo ST3215 versi 12 V dicatu ±12 V; 4S penuh 16,8 V melebihinya dan butuh regulator 12 V ±15 A. 3S penuh 12,6 V langsung ke servo tanpa regulator. 5000 mAh dipilih karena bobot (±0,4 kg, 4S 8000 mAh ±0,75 kg); estimasi waktu jalan ±60 menit.",
+      "Pi dicatu buck 5 V 5 A; saklar utama, sekring 15 A, kabel 12 AWG. Pengisian memakai charger iMAX B6AC milik robot beroda."
+    ],
+    "9": [
+      "Enkoder: bawaan tiap servo (12). Ultrasonik: HC-SR04 3,3 V di dada. IMU: BNO085 9-sumbu, fusi sensor di dalam chip (kuaternion langsung). Kamera stereoskopik: modul USB dua lensa 2560 × 720, 30 fps, kedua lensa tersinkron dalam satu frame."
+    ]
+  },
+  "spek": [
+    "Memiliki 2 legs dengan 6-DOF per kaki (hip yaw, hip roll, hip pitch, knee, ankle pitch, ankle roll), total 12 sendi",
+    "Memiliki ukuran thigh + shank ± 240 mm (120 mm + 120 mm)",
+    "Memiliki berat ± 2,3 kg (diubah dari ± 6 kg agar beban servo ≤ 50%)",
+    "Memiliki telapak kaki model small pad aluminium 120 x 70 mm dengan alas karet",
+    "Memiliki penggerak sendi berupa motor servo bus 12 VDC digital ber-enkoder torsi ± 30 kg.cm, 12 unit",
+    "Memiliki konstruksi terbuat dari aluminium 1,8 mm potong laser",
+    "Memiliki pengendali berbasis Raspberry Pi 5 4 GB",
+    "Memiliki baterai LiPo 11,1 V kapasitas 5000 mAh dengan BMS (diubah dari 14,8 V 8000 mAh agar sesuai servo 12 V)",
+    "Memiliki sensor enkoder (12), ultrasonik, IMU 9-sumbu, dan kamera stereoskopik"
+  ]
+}

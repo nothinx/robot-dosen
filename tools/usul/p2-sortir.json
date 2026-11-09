@@ -40,5 +40,16 @@
       "PLC Siemens S7-1200 CPU 1214C AC/DC/RLY (14 DI, 10 DO relay, 2 AI, HSC, TIA Portal), sama dengan P1 dan P3. Box panel 30 × 40 × 20 cm: MCB, catu Meanwell NDR-240-24 (24 V 10 A), relay MY2N, terminal block, rel DIN; pintu: tombol Start/Stop/Reset, selector Auto/Manual, E-stop, 3 lampu indikator, kenop kecepatan.",
       "E-stop memutus catu 24 V motor dan katup lewat relay secara langsung (tidak bergantung program), lalu dibaca PLC. I/O terpakai: 14 DI (enkoder A/B, PE1, warna, Pi siap, Pi OK, E-stop, PE2, 2 reed, Start, Stop, Reset, Auto/Manual), 7 DO (motor, katup, pemicu kamera, 3 lampu, LED kamera), 2 AI cadangan. HMI tidak diminta (opsi)."
     ]
-  }
+  },
+  "spek": [
+    "Memiliki 1 konveyor dengan dimensi (p x l) ± 3000 mm x 200 mm, belt PVC food grade 2 mm, tinggi belt 800 mm",
+    "Memiliki dua bin, yaitu bin normal di ujung konveyor dan bin reject 58 L di samping konveyor",
+    "Memiliki kapasitas konveyor ± 20 kg",
+    "Memiliki berat produk maksimum ± 6 kg (berat konveyor sendiri ± 47 kg)",
+    "Memiliki sensor fotoelektrik (2), sensor warna color mark, kamera (Raspberry Pi 5 + Camera Module 3), dan enkoder konveyor",
+    "Memiliki konstruksi terbuat dari stainless steel 304 (rangka hollow 40 x 40 x 1,2 mm, pelat 1,2 mm)",
+    "Memiliki motor penggerak 24 VDC 60 W dengan girboks 1:36 dan pengatur kecepatan, kecepatan belt maks ± 0,26 m/s",
+    "Memiliki katup pneumatik 5/2 24 VDC dan silinder Ø20 x 200 mm sebagai aktuator (udara dari kompresor stasiun konveyor pengepakan)",
+    "Memiliki panel kontrol elektronik dengan PLC Siemens S7-1200 CPU 1214C, catu daya 24 VDC 10 A, tombol operasi, emergency stop, dan lampu indikator"
+  ]
 }

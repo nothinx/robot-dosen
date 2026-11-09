@@ -4,25 +4,54 @@
   "nama": "Konveyor pengepakan",
   "html": "p1-pengepakan.html",
   "usul": {
-    "1": ["Tetap 2 sub-konveyor. Infeed dipasang sejajar di samping packing; produk ditahan palang di ujung infeed tepat di atas stasiun isi, lalu didorong silinder menyamping lewat talang ke kardus 40 × 30 × 25 cm di konveyor packing.",
-          "Urutan otomatis: kardus tiba di stasiun isi (proksimitas) → tara load cell → tiap produk di palang (fotoelektrik) didorong silinder → ditimbang → setelah jumlah per kotak tercapai (parameter, bawaan 10) kardus maju satu pitch 500 mm diukur enkoder → kardus penuh menunggu diambil di posisi ambil (fotoelektrik kedua). Simulasi: ±100 kotak/jam pada 20 produk/menit."],
-    "2": ["Tetap 1500 × 100 mm. Belt PVC putih food grade 2 mm, pulley Ø76,2 mm, kecepatan 0,22 m/s.",
-          "Tinggi belt 1050 mm dari lantai supaya produk jatuh lewat talang ke atas bibir kardus (kardus 250 mm di atas belt packing 750 mm)."],
-    "3": ["Tetap 2000 × 600 mm, tinggi belt 750 mm, kecepatan 0,16 m/s, pitch kardus 500 mm.",
-          "Ditambah pemandu samping (kardus berjalan menempel pemandu agar terbaca proksimitas) dan pelat timbang 420 × 420 mm sebidang alas luncur di stasiun isi."],
-    "4": ["Dibaca sebagai kapasitas beban 20 kg tiap konveyor (\"diameter\" diduga salah ketik).",
-          "Hitungan packing: F = 0,33 × (20 + 2,9 kg belt) × 9,81 × 1,15 ≈ 85 N → torsi pulley 3,2 N·m (lepas diam 3,9 N·m), daya keluaran 13,6 W pada 0,16 m/s. Motor 60 W dengan efisiensi gear 0,7 memberi 42 W: cadangan ±3×."],
-    "5": ["2 fotoelektrik difus E3F-DS30P1 PNP (produk di ujung infeed, kardus penuh di posisi ambil); 1 proksimitas kapasitif LJC18A3 PNP (kardus karton bukan logam, sensor induktif tidak bisa).",
-          "Load cell single point Zemic L6E 50 kg + transmitter 0-10 V ke masukan analog PLC (resolusi ±50 g, akurasi ±0,1 kg). Enkoder Omron E6B2-CWZ5B 1000 P/R di pulley ekor packing ke high-speed counter: 0,06 mm per cacah.",
-          "Ditambah 2 reed switch di silinder (posisi maju/mundur) untuk interlock."],
-    "6": ["Stainless steel 304: rangka & kaki hollow 40 × 40 × 1,5 mm, alas luncur & pelat plat 1,5 mm, pulley dari pipa 3\", as Ø20 mm. Bearing UCP204 di kepala, UCT204 take-up di ekor untuk menegangkan belt.",
-          "Dirakit bengkel las argon; biaya jasa bubut & las adalah estimasi dari listing jasa (±Rp3,4 jt). Pembanding konveyor stainless jadi: Rp7 jt sampai Rp10,5 jt per unit."],
-    "7": ["Motor DC 24 V 60 W Houle 5DC60W + gearhead 5GU (1:50 untuk packing, 1:36 untuk infeed) + pengatur kecepatan DC, dua unit.",
-          "Dihidup-matikan PLC lewat relay perantara Omron LY2N 10 A (relay PLC hanya 2 A, motor 3,5 A pengenal). Catu Meanwell NDR-240-24 10 A untuk beban terburuk 7,6 A."],
-    "8": ["Katup solenoid 5/2 Airtac 4V210-08 24 VDC (pegas balik: daya hilang = silinder mundur) menggerakkan silinder Airtac SC 32 × 200 bermagnet.",
-          "Ditambah yang tidak tercantum tetapi wajib: kompresor oilless 30 L 1100 W (dipakai bersama stasiun P2), unit FRL disetel 4 bar, selang PU 8 mm, fitting, speed controller."],
-    "9": ["PLC Siemens S7-1200 CPU 1214C AC/DC/RLY (14 DI, 10 DO relay, 2 AI 0-10 V, HSC 100 kHz, TIA Portal), sama untuk P1, P2, P3. Terpakai 13 DI, 6 DO, 1 AI.",
-          "Box panel 50 × 40 × 20 cm: MCB 2P 6 A, PSU 24 V, relay, terminal, tombol Start/Stop/Reset/Dorong, selektor Auto/Manual, E-stop yang memutus catu aktuator secara kabel, lampu hijau/kuning/merah. Semua sensor PNP dengan common 1M ke 0 V.",
-          "HMI tidak dibeli karena tidak diminta (opsi: Siemens KTP400). Alternatif PLC murah: Outseal, tetapi bukan standar TIA Portal."]
-  }
+    "1": [
+      "Tetap 2 sub-konveyor. Infeed dipasang sejajar di samping packing; produk ditahan palang di ujung infeed tepat di atas stasiun isi, lalu didorong silinder menyamping lewat talang ke kardus 40 × 30 × 25 cm di konveyor packing.",
+      "Urutan otomatis: kardus tiba di stasiun isi (proksimitas) → tara load cell → tiap produk di palang (fotoelektrik) didorong silinder → ditimbang → setelah jumlah per kotak tercapai (parameter, bawaan 10) kardus maju satu pitch 500 mm diukur enkoder → kardus penuh menunggu diambil di posisi ambil (fotoelektrik kedua). Simulasi: ±100 kotak/jam pada 20 produk/menit."
+    ],
+    "2": [
+      "Tetap 1500 × 100 mm. Belt PVC putih food grade 2 mm, pulley Ø76,2 mm, kecepatan 0,22 m/s.",
+      "Tinggi belt 1050 mm dari lantai supaya produk jatuh lewat talang ke atas bibir kardus (kardus 250 mm di atas belt packing 750 mm)."
+    ],
+    "3": [
+      "Tetap 2000 × 600 mm, tinggi belt 750 mm, kecepatan 0,16 m/s, pitch kardus 500 mm.",
+      "Ditambah pemandu samping (kardus berjalan menempel pemandu agar terbaca proksimitas) dan pelat timbang 420 × 420 mm sebidang alas luncur di stasiun isi."
+    ],
+    "4": [
+      "Dibaca sebagai kapasitas beban 20 kg tiap konveyor (\"diameter\" diduga salah ketik).",
+      "Hitungan packing: F = 0,33 × (20 + 2,9 kg belt) × 9,81 × 1,15 ≈ 85 N → torsi pulley 3,2 N·m (lepas diam 3,9 N·m), daya keluaran 13,6 W pada 0,16 m/s. Motor 60 W dengan efisiensi gear 0,7 memberi 42 W: cadangan ±3×."
+    ],
+    "5": [
+      "2 fotoelektrik difus E3F-DS30P1 PNP (produk di ujung infeed, kardus penuh di posisi ambil); 1 proksimitas kapasitif LJC18A3 PNP (kardus karton bukan logam, sensor induktif tidak bisa).",
+      "Load cell single point Zemic L6E 50 kg + transmitter 0-10 V ke masukan analog PLC (resolusi ±50 g, akurasi ±0,1 kg). Enkoder Omron E6B2-CWZ5B 1000 P/R di pulley ekor packing ke high-speed counter: 0,06 mm per cacah.",
+      "Ditambah 2 reed switch di silinder (posisi maju/mundur) untuk interlock."
+    ],
+    "6": [
+      "Stainless steel 304: rangka & kaki hollow 40 × 40 × 1,5 mm, alas luncur & pelat plat 1,5 mm, pulley dari pipa 3\", as Ø20 mm. Bearing UCP204 di kepala, UCT204 take-up di ekor untuk menegangkan belt.",
+      "Dirakit bengkel las argon; biaya jasa bubut & las adalah estimasi dari listing jasa (±Rp3,4 jt). Pembanding konveyor stainless jadi: Rp7 jt sampai Rp10,5 jt per unit."
+    ],
+    "7": [
+      "Motor DC 24 V 60 W Houle 5DC60W + gearhead 5GU (1:50 untuk packing, 1:36 untuk infeed) + pengatur kecepatan DC, dua unit.",
+      "Dihidup-matikan PLC lewat relay perantara Omron LY2N 10 A (relay PLC hanya 2 A, motor 3,5 A pengenal). Catu Meanwell NDR-240-24 10 A untuk beban terburuk 7,6 A."
+    ],
+    "8": [
+      "Katup solenoid 5/2 Airtac 4V210-08 24 VDC (pegas balik: daya hilang = silinder mundur) menggerakkan silinder Airtac SC 32 × 200 bermagnet.",
+      "Ditambah yang tidak tercantum tetapi wajib: kompresor oilless 30 L 1100 W (dipakai bersama stasiun P2), unit FRL disetel 4 bar, selang PU 8 mm, fitting, speed controller."
+    ],
+    "9": [
+      "PLC Siemens S7-1200 CPU 1214C AC/DC/RLY (14 DI, 10 DO relay, 2 AI 0-10 V, HSC 100 kHz, TIA Portal), sama untuk P1, P2, P3. Terpakai 13 DI, 6 DO, 1 AI.",
+      "Box panel 50 × 40 × 20 cm: MCB 2P 6 A, PSU 24 V, relay, terminal, tombol Start/Stop/Reset/Dorong, selektor Auto/Manual, E-stop yang memutus catu aktuator secara kabel, lampu hijau/kuning/merah. Semua sensor PNP dengan common 1M ke 0 V.",
+      "HMI tidak dibeli karena tidak diminta (opsi: Siemens KTP400). Alternatif PLC murah: Outseal, tetapi bukan standar TIA Portal."
+    ]
+  },
+  "spek": [
+    "Memiliki 2 sub-konveyor yaitu main infeed conveyor dan packing conveyor yang dipasang sejajar; produk didorong silinder lewat talang ke kardus 40 x 30 x 25 cm",
+    "Memiliki dimensi main infeed conveyor (p x l) ± 1500 mm x 100 mm, belt PVC food grade 2 mm, tinggi belt 1050 mm, kecepatan ± 0,22 m/s",
+    "Memiliki dimensi packing conveyor (p x l) ± 2000 mm x 600 mm, tinggi belt 750 mm, kecepatan ± 0,16 m/s, dengan pelat timbang 420 x 420 mm",
+    "Memiliki kapasitas beban ± 20 kg untuk tiap konveyor",
+    "Memiliki sensor fotoelektrik difus (2), proksimitas kapasitif (1), load cell 50 kg dengan transmitter 0–10 V, enkoder konveyor 1000 P/R, dan reed switch silinder (2)",
+    "Memiliki konstruksi terbuat dari stainless steel 304 (rangka hollow 40 x 40 x 1,5 mm, pelat 1,5 mm)",
+    "Memiliki motor penggerak 24 VDC 60 W dengan girboks (1:36 infeed, 1:50 packing) dan pengatur kecepatan, 2 unit",
+    "Memiliki katup pneumatik 5/2 24 VDC dan silinder Ø32 x 200 mm sebagai aktuator, dilengkapi kompresor 30 L dan unit FRL",
+    "Memiliki panel kontrol elektronik dengan PLC Siemens S7-1200 CPU 1214C, catu daya 24 VDC 10 A, tombol operasi, emergency stop, dan lampu indikator"
+  ]
 }

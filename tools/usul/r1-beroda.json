@@ -1,0 +1,58 @@
+{
+  "docx": "robotic_arm_specs.docx",
+  "judul_dosen": "Robot beroda",
+  "nama": "Robot beroda",
+  "html": "r1-beroda.html",
+  "usul": {
+    "1": [
+      "Tetap differential-drive. Kaster: roda kastor PU 1,5\" putar, double bearing (ball caster kecil tidak kuat untuk total ±13 kg)."
+    ],
+    "2": [
+      "Tetap 350 × 250 mm. Dua dek pelat aluminium 3 mm (dek bawah: semua elektronik; dek atas: bak muatan).",
+      "Bak muatan 270 × 250 mm di dek atas, dinding siku aluminium 20 × 20 × 2 mm di 4 sisi, alas karet anti-slip, lubang tali pengikat. Pola sama dengan Kobuki/TurtleBot 2 (muatan 5 kg) dan Pioneer 3-DX: elektronik di bawah, permukaan teratas kosong untuk barang. Ultrasonik dipasang di celah antar dek supaya tidak terhalang muatan; E-stop di jalur 80 mm belakang bak."
+    ],
+    "3": [
+      "Roda RC Ø85 mm ban karet (masih dalam toleransi ±; roda robot 80 mm di pasaran hampir semuanya mecanum).",
+      "Sambungan: hex coupling kuningan lubang 8 mm → hex 12 mm (poros PG36 8 mm, velg RC hex 12 mm)."
+    ],
+    "4": [
+      "Tetap 5 kg. Dasar perhitungan: massa total ±13 kg, torsi puncak ±6,5 kg·cm per motor (tanjakan 10° + percepatan 0,5 m/s²).",
+      "Pusat bak 30 mm di belakang poros roda: dengan muatan 5 kg ±77% berat jatuh di roda penggerak (traksi baik), titik berat ±14 cm dari lantai, robot baru terjungkit ke depan pada perlambatan ±3 m/s² (rem simulasi 0,5 m/s²)."
+    ],
+    "5": [
+      "Motor: planetary PG36 rasio 1:50,1 + enkoder 7 PPR, varian 24 V, 2 unit, dengan braket dudukan.",
+      "Alasan: motor 12 V di baterai 4S (16,8 V penuh) bekerja di atas tegangan nominal. Motor 24 V di 14,8 V berjalan dingin, torsi stall ±25 kg·cm (≥ 3× kebutuhan), kecepatan ±150 rpm tanpa beban ≈ 0,6 m/s. Kalau 200 rpm wajib: baterai 6S, atau motor 12 V dengan PWM dibatasi 70%.",
+      "Enkoder: 7 PPR × 50,1 × 4 tepi = ±1400 count/putaran roda (±0,19 mm/count), dibaca timer STM32 mode enkoder.",
+      "Driver: Cytron MDD10A dual channel, 10 A kontinu / 30 A puncak, 5–30 V. Kebutuhan nyata ±1–3 A per motor. Bila 30 A kontinu wajib: Cytron MDDS30."
+    ],
+    "6": [
+      "Aluminium 3 mm (opsi \"logam campuran\" di spesifikasi). Stainless menambah ±3–4 kg tanpa manfaat fungsional."
+    ],
+    "7": [
+      "Diganti STM32 Black Pill WeAct STM32F411CEU6 (Cortex-M4 100 MHz + FPU, 512 KB flash, 128 KB RAM), ditancap di PCB pembawa (konektor motor, sensor, catu). Pemrograman/debug lewat ST-Link V2.",
+      "Alasan: 8 timer perangkat keras cukup untuk 2 enkoder kuadratur (mode enkoder), PWM 2 motor, dan input capture 3 ultrasonik; bisa diprogram dengan Arduino IDE (STM32duino) maupun STM32CubeIDE. Pengendali yang sama dipakai di lengan robot (R3)."
+    ],
+    "8": [
+      "LiPo 4S 5000 mAh 70C (CNHL, konektor XT90). Pack hobi tidak punya BMS, jadi ditambah BMS 4S 30A (proteksi over/under-voltage & arus).",
+      "Pengisian dengan balance charger iMAX B6AC (catu AC bawaan). Tambahan pengaman: sekring 15 A + tombol E-stop di jalur daya motor.",
+      "Catu logika: buck XL4015 5 A, 14,8 V → 5 V (Black Pill, sensor).",
+      "Saklar utama rocker 16 A, kabel daya silikon 12 AWG, konektor XT90; sensor & enkoder lewat konektor JST XH ke PCB pembawa."
+    ],
+    "9": [
+      "Enkoder: bawaan motor (2). Benturan: limit switch roller Omron V-156 (2, depan kiri/kanan).",
+      "Ultrasonik: HC-SR04 versi 3,3–5 V (3: depan, kiri-depan, kanan-depan; aman untuk I/O 3,3 V STM32).",
+      "Inframerah: modul TCRT5000 (2, deteksi tepi/garis)."
+    ]
+  },
+  "spek": [
+    "Memiliki sasis tipe differential-drive dengan 2 roda dan 1 kaster putar PU 1,5 inci",
+    "Memiliki dimensi base (p x l) ± 350 mm x 250 mm, dua dek, dek atas berupa bak muatan 270 x 250 mm",
+    "Memiliki dimensi diameter roda ± 85 mm dengan ban karet",
+    "Memiliki kapasitas angkut sampai 5 kg",
+    "Memiliki penggerak motor planetary 24 VDC dengan enkoder, kecepatan ± 150 rpm pada baterai 14,8 V, dengan driver dual H-bridge 10 A (puncak 30 A)",
+    "Memiliki konstruksi terbuat dari aluminium 3 mm",
+    "Memiliki pengendali berbasis STM32 (WeAct Black Pill F411) (diubah dari Arduino Mega)",
+    "Memiliki baterai LiPo 14,8 V kapasitas 5000 mAh dengan BMS 4S 30 A",
+    "Memiliki sensor enkoder (2), benturan (2), ultrasonik (3), dan inframerah (2)"
+  ]
+}

@@ -36,5 +36,15 @@
       "Panel box 30 × 40 × 20 cm: PLC Siemens S7-1200 CPU 1214C AC/DC/RLY (sama untuk P1, P2, P3), Mean Well LRS-100-24, RCBO 16 A 30 mA, MCB 4 A dan 10 A, SSR + heatsink, relay K1, terminal block, rel DIN, kabel duct.",
       "Pintu: tombol START, STOP, RESET, selector otomatis/manual, emergency stop, lampu JALAN/PEMANAS/ALARM. I/O terpakai 7 DI, 8 DO, 1 AI (AI kedua cadangan untuk sensor level analog). HMI tidak diminta, bisa ditambah sebagai opsi."
     ]
-  }
+  },
+  "spek": [
+    "Memiliki 2 tangki inlet stainless steel yang masing-masing berukuran ± 10 liter (kapasitas penuh ± 12 L)",
+    "Memiliki 1 tangki utama berukuran ± 20 liter (volume kerja 16 L per batch) dengan katup pembuangan solenoid 3/4 inci dan pengaduk propeller Ø100 mm",
+    "Memiliki katup solenoid 24 VDC kerja langsung 1/2 inci pada masing-masing tangki inlet (diubah dari 12 VDC agar satu catu daya)",
+    "Memiliki motor 24 VDC 15 W ± 167 rpm dilengkapi impeller pada tangki utama",
+    "Memiliki sensor level atas dan bawah (float switch stainless) pada tangki utama, ditambah sensor level pengaman pemanas",
+    "Memiliki elemen pemanas 1500 W 220 VAC beserta sensor suhu PT100 pada tangki utama, dengan thermostat pengaman 90 °C",
+    "Memiliki konstruksi yang terbuat dari stainless steel 304 (tangki, katup, pengaduk, dan rak 4 tingkat 80 x 50 x 120 cm)",
+    "Memiliki panel kontrol elektronik dengan PLC Siemens S7-1200 CPU 1214C, catu daya 24 VDC, SSR pemanas, RCBO 30 mA, dan emergency stop"
+  ]
 }

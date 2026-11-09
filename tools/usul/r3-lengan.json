@@ -37,5 +37,15 @@
       "Tetap 220 VAC: kabel berarde → MCB 2P 10 A → kontaktor LC1D09 (tombol START, 2 tombol E-stop seri) → 3 driver servo AC. PSU Mean Well LRS-200-24 (24 V 8,8 A) untuk driver MKS, rem, sensor & logika; buck 6,5 V untuk servo gripper; relay 24 V membuka rem dari sinyal driver (gagal-aman). Semua dalam box panel 40 × 30 × 18 cm.",
       "E-stop memutus daya motor, sedangkan PSU 24 V dan Black Pill tetap hidup sehingga status tetap terbaca dan rem mengunci."
     ]
-  }
+  },
+  "spek": [
+    "Memiliki 6-DOF dengan jangkauan ± 1000 mm dan beban ± 0,5 kg di ujung",
+    "Memiliki struktur rangka terbuat dari aluminium 6061 (hollow 50 x 50 mm, pelat 6 mm)",
+    "Memiliki end-effector berupa gripper paralel (bukaan 55 mm) dengan flens yang dapat diganti tool lainnya",
+    "Memiliki penggerak berupa motor servo AC 220 V 17-bit dengan gearbox planetary (J1–J3) dan stepper closed-loop ber-enkoder 14-bit (J4–J6) yang mendukung kontrol kecepatan, posisi, dan torsi",
+    "Memiliki pengendali berbasis STM32 (WeAct Black Pill F411); kinematika dan kamera diolah di PC (diubah dari Arduino Mega)",
+    "Memiliki tingkat kekakuan dan hentakan balik ≤ 0,5° per sendi",
+    "Memiliki sensor enkoder, kamera stereoskopik, sensor proksimitas induktif (6), dan sensor jarak ToF di gripper",
+    "Menggunakan catu daya 220 VAC dengan MCB, kontaktor, dan emergency stop"
+  ]
 }

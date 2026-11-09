@@ -2,8 +2,8 @@
 
 Sumber: `spesifikasi/PLC_specs.docx`, `spesifikasi/robotic_arm_specs.docx` (salinan dari Downloads, 6 Nov 2026).
 Repo: https://github.com/nothinx/robot-dosen (public, disetujui user 6 Nov 2026) · Pages: https://nothinx.github.io/robot-dosen/
-(indeks → `visual/<alat>.html` untuk R1–R3 & P1–P3). Docx diisi ulang dengan `tools/isi_spesifikasi.py` dari versi asli 08968cb
-(RAB dibaca dari PARTS di halaman visual). Status: keenam alat punya usulan awal + RAB + halaman (7 Nov 2026); belum dikonfirmasi dosen. README keputusan: `robot/*/`, `plc/*/`.
+(indeks → `visual/<alat>.html` untuk R1–R3 & P1–P3). Docx asli dosen tidak diubah; versi usulan `spesifikasi/*_usulan.docx` dibuat `tools/isi_spesifikasi.py`
+dari asli 08968cb + `tools/usul/*.json` (baris `spek`), RAB dari PARTS di halaman visual. Status: keenam alat punya usulan awal + RAB + halaman (7 Nov 2026); belum dikonfirmasi dosen. README keputusan: `robot/*/`, `plc/*/`.
 
 Gaya teksnya ("Memiliki …", nilai ±) mirip **spesifikasi teknis pengadaan/hibah alat lab**, bukan dokumen desain.
 Jadi pertanyaan pertama: dosen minta kita **membangun** alatnya, atau **menyusun usulan/RAB/desain** saja?
